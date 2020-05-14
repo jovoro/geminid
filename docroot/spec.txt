@@ -1,0 +1,650 @@
+-----------------------------
+Project Gemini
+"Speculative specification"
+v0.11.0, March 1st 2020
+-----------------------------
+
+This is an increasingly less rough sketch of an actual spec for
+Project Gemini.  Although not finalised yet, further changes to the
+specification are likely to be relatively small.  You can write code
+to this pseudo-specification and be confident that it probably won't
+become totally non-functional due to massive changes next week, but
+you are still urged to keep an eye on ongoing development of the
+protocol and make changes as required.
+
+This is provided mostly so that people can quickly get up to speed on
+what I'm thinking without having to read lots and lots of old phlog
+posts and keep notes.
+
+Feedback on any part of this is extremely welcome, please email
+solderpunk@sdf.org.
+
+-----------------------------
+
+1. Overview
+
+Gemini is a client-server protocol featuring request-response
+transactions, broadly similar to gopher or HTTP.  Connections are
+closed at the end of a single transaction and cannot be reused.  When
+Gemini is served over TCP/IP, servers should listen on port 1965 (the
+first manned Gemini mission, Gemini 3, flew in March '65).  This is an
+unprivileged port, so it's very easy to run a server as a "nobody"
+user, even if e.g. the server is written in Go and so can't drop
+privileges in the traditional fashion.
+
+1.1 Gemini transactions
+
+There is one kind of Gemini transaction, roughly equivalent to a
+gopher request or a HTTP "GET" request.  Transactions happen as
+follows:
+
+C:   Opens connection
+S:   Accepts connection
+C/S: Complete TLS handshake (see 1.4)
+C:   Validates server certificate (see 1.4.2)
+C:   Sends request (one CRLF terminated line) (see 1.2)
+S:   Sends response header (one CRFL terminated line), closes connection
+     under non-success conditions (see 1.3.1, 1.3.2)
+S:   Sends response body (text or binary data) (see 1.3.3)
+S:   Closes connection
+C:   Handles response (see 1.3.4)
+
+1.2 Gemini requests
+
+Gemini requests are a single CRLF-terminated line with the following
+structure:
+
+<URL><CR><LF>
+
+<URL> is a UTF-8 encoded absolute URL, of maximum length 1024 bytes.
+If the scheme of the URL is not specified, a scheme of gemini:// is
+implied.
+
+Sending an absolute URL instead of only a path or selector is
+effectively equivalent to building in a HTTP "Host" header.  It
+permits virtual hosting of multiple Gemini domains on the same IP
+address.  It also allows servers to optionally act as proxies.
+Including schemes other than gemini:// in requests allows servers to
+optionally act as protocol-translating gateways to e.g. fetch gopher
+resources over Gemini.  Proxying is optional and the vast majority of
+servers are expected to only respond to requests for resources at
+their own domain(s).
+
+1.3 Responses
+
+Gemini response consist of a single CRLF-terminated header line,
+optionally followed by a response body.
+
+1.3.1 Response headers
+
+Gemini response headers look like this:
+
+<STATUS><whitespace><META><CR><LF>
+
+<STATUS> is a two-digit numeric status code, as described below in
+1.3.2 and in Appendix 1.
+
+<whitespace> is any non-zero number of consecutive spaces or tabs.
+
+<META> is a UTF-8 encoded string of maximum length 1024, whose meaning
+is <STATUS> dependent.
+
+If <STATUS> does not belong to the "SUCCESS" range of codes, then the
+server MUST close the connection after sending the header and MUST NOT
+send a response body.
+
+If a server sends a <STATUS> which is not a two-digit number or a
+<META> which exceeds 1024, the client SHOULD close the connection and
+disregard the response header, informing the user of an error.
+
+1.3.2 Status codes
+
+Gemini uses two-digit numeric status codes.  Related status codes share
+the same first digit.  Importantly, the first digit of Gemini status
+codes do not group codes into vague categories like "client error" and
+"server error" as per HTTP.  Instead, the first digit alone provides
+enough information for a client to determine how to handle the
+response.  By design, it is possible to write a simple but feature
+complete client which only looks at the first digit.  The second digit
+provides more fine-grained information, for unambiguous server logging,
+to allow writing comfier interactive clients which provide a slightly
+more streamlined user interface, and to allow writing more robust and
+intelligent automated clients like content aggregators, search engine
+crawlers, etc.
+
+The first digit of a response code unambiguously places the response
+into one of six categories, which define the semantics of the <META>
+line.
+
+1	INPUT
+
+	The requested resource accepts a line of textual user input.
+	The <META> line is a prompt which should be displayed to the
+	user.  The same resource should then be requested again with
+	the user's input included as a query component.  Queries are
+	included in requests as per the usual generic URL definition
+	in RFC3986, i.e. separated from the path by a ?.  There is no
+	response body.
+
+2	SUCCESS
+
+	The request was handled successfully and a response body will
+	follow the response header.  The <META> line is a MIME media
+	type which applies to the response body.
+
+3	REDIRECT
+
+	The server is redirecting the client to a new location for the
+	requested resource.  There is no response body.  The header
+	text is a new URL for the requested resource.  The URL may be
+	absolute or relative.  The redirect should be considered
+	temporary, i.e. clients should continue to request the
+	resource at the original address and should not performance
+	convenience actions like automatically updating bookmarks.
+	There is no response body.
+
+4	TEMPORARY FAILURE
+
+	The request has failed.  There is no response body.  The
+	nature of the failure is temporary, i.e. an identical request
+	MAY succeed in the future.  The contents of <META> may provide
+	additional information on the failure, and should be displayed
+	to human users.
+
+5	PERMANENT FAILURE
+
+	The request has failed.  There is no response body.  The
+	nature of the failure is permanent, i.e. identical future
+	requests will reliably fail for the same reason.  The contents
+	of <META> may provide additional information on the failure,
+	and should be displayed to human users.  Automatic clients
+	such as aggregators or indexing crawlers should should not
+	repeat this request.
+
+6	CLIENT CERTIFICATE REQUIRED
+
+	The requested resource requires client-certificate
+	authentication to access.  If the request was made without a
+	certificate, it should be repeated with one.  If the request
+	was made with a certificate, the server did not accept it and
+	the request should be repeated with a different certificate.
+	The contents of <META> may provide additional information on 
+	certificate requirements or the reason a certificate was
+	rejected.
+
+Note that for basic interactive clients for human use, errors 4 and 5
+may be effectively handled identically, by simply displaying the
+contents of <META> under a heading of "ERROR".  The
+temporary/permanent error distinction is primarily relevant to
+well-behaving automated clients.  Basic clients may also choose not to
+support client-certificate authentication, in which case only four
+distinct status handling routines are required (for statuses beginning
+with 1, 2, 3 or a combined 4-or-5).
+
+The full two-digit system is detailed in Appendix 1.  Note that for
+each of the six valid first digits, a code with a second digit of zero
+corresponds is a generic status of that kind with no special
+semantics.  This means that basic servers without any advanced
+functionality need only be able to return codes of 10, 20, 30, 40 or
+50.
+
+The Gemini status code system has been carefully designed so that the
+increased power (and correspondingly increased complexity) of the
+second digits is entirely "opt-in" on the part of both servers and
+clients.
+
+1.3.3 Response bodies
+
+Response bodies are just raw content, text or binary, ala gopher.
+There is no support for compression, chunking or any other kind of
+content or transfer encoding.  The server closes the connection after
+the final byte, there is no "end of response" signal like gopher's
+lonely dot.
+
+Response bodies only accompany responses whose header indicates a
+SUCCESS status (i.e. a status code whose first digit is 2).  For such
+responses, <META> is a MIME media type as defined in RFC 2046.
+
+If a MIME type begins with "text/" and no charset is explicitly given,
+the charset should be assumed to be UTF-8.  Compliant clients MUST
+support UTF-8-encoded text/* responses.  Clients MAY optionally
+support other encodings.  Clients receiving a response in a charset
+they cannot decode SHOULD gracefully inform the user what happened
+instead of displaying garbage.
+
+If <META> is an empty string, the MIME type MUST default to
+"text/gemini; charset=utf-8".
+
+1.3.4 Response body handling
+
+Response handling by clients should be informed by the provided MIME
+type information.  Gemini defines one MIME type of its own
+(text/gemini) whose handling is discussed below in 1.3.5.  In all
+other cases, clients should do "something sensible" based on the MIME
+type.  Minimalistic clients might adopt a strategy of printing all
+other text/* responses to the screen without formatting and saving
+all non-text responses to the disk.  Clients for unix systems may
+consult /etc/mailcap to find installed programs for handling non-text
+types.
+
+1.3.5 text/gemini responses
+
+1.3.5.1 Overview
+
+In the same sense that HTML is the "native" response format of HTTP
+and plain text is the native response format of gopher, Gemini defines
+its own native response format - though of course, thanks to the
+inclusion of a MIME type in the response header Gemini can be used to
+serve plain text, rich text, HTML, Markdown, LaTeX, etc.
+
+Response bodies of type "text/gemini" are a kind of lightweight
+hypertext format, which takes inspiration from gophermaps and from
+Markdown.  The format permits richer typographic possibilities than
+the plain text of Gopher, but remains extremely easy to parse.  The
+format is line-oriented, and a satisfactory rendering can be achieved
+with a single pass of a document, processing each line independently.
+As per gopher, links can only be displayed one per line, encouraging
+neat, list-like structure.
+
+Similar to how the two-digit Gemini status codes were designed so that
+simple clients can function correctly while ignoring the second digit,
+the text/gemini format has been designed so that simple clients can
+ignore the more advanced features and still remain very usable.
+
+1.3.5.2 Line-orientation
+
+As mentioned, the text/gemini format is line-oriented.  Each line of a
+text/gemini document has a single "line type".  It is possible to
+unambiguously determine a line's type purely by inspecting its first
+three characters.  A line's type determines the manner in which it
+should be presented to the user.  Any details of presentation or
+rendering associated with a particular line type are strictly limited
+in scope to that individual line.
+
+There are 6 different line types in total.  However, a fully
+functional and specification compliant Gemini client need only
+recognise and handle 4 of them - these are the "core line types",
+(see 1.3.5.3).  Advanced clients can also handle the additional
+"advanced line types" (see 1.3.5.4).  Simple clients can treat all
+advanced line types as one of the core line types and still offer an
+adequate user experience.
+
+1.3.5.3 Core line types
+
+The four core line types are:
+
+1.3.5.3.1 Text lines
+
+Text lines are the most fundamenal line type - any line which does
+not match the definition of another line type defined below defaults
+to being a text line.  The majority of lines in a typical text/gemini
+document will be text lines.
+
+Text lines should be presented to the user, after being wrapped to
+the appropriate width for the client's viewport (see below).  Text
+lines may be presented to the user in a visually pleasing manner
+for general reading, the precise meaning of which is at the
+client's discretion.  For example, variable width fonts may be used,
+spacing may be normalised, with spaces between sentences being made
+wider than spacing between words, and other such typographical
+niceties may be applied.  Clients may permit users to customise the
+appearance of text lines by altering the font, font size, text and
+background colour, etc.  Authors should not expect to exercise any
+control over the precise rendering of their text lines, only of their
+actual textual content.  Content such as ASCII art, computer source
+code, etc. which may appear incorrectly when treated as such should
+be enclosed beween preformatting toggle lines (see 1.3.5.3.3).
+
+Blank lines are instances of text lines and have no special meaning.
+They should be rendered individually as vertical blank space each
+time they occur.  In this way  they are analogous to <br/> tags in HTML.
+Consecutive blank lines should NOT be collapsed into a fewer blank
+lines.  Note also that consecutive non-blank text lines do not form
+any kind of coherent unit or block such as a "paragraph": all text
+lines are independent entities.
+
+Text lines which are longer than can fit on a client's display device
+SHOULD be "wrapped" to fit, i.e. long lines should be split (ideally
+at whitespace or at hyphens) into multiple consecutive lines of a
+device-appropriate width.  This wrapping is applied to each line of
+text independently.  Multiple consecutive lines which are shorter
+than the client's display device MUST NOT be combined into fewer,
+longer lines.
+
+In order to take full advantage of this method of text formatting,
+authors of text/gemini content SHOULD avoid hard-wrapping to a
+pecific fixed width, in contrast to the convention in Gopherspace
+where text is typically wrapped at 80 characters or fewer.  Instead,
+text which should be displayed as a contiguous block should be written
+as a single long line.  Most text editors can be configured to
+"soft-wrap", i.e. to write this kind of file while displaying the long
+lines wrapped to fit the author's display device.
+
+Authors who insist on hard-wrapping their content MUST be aware that
+the content will display neatly on clients whose display device is as
+wide as the hard-wrapped length or wider, but will appear with
+irregular line widths on narrower clients.
+
+1.3.5.3.2 Link lines
+
+Lines beginning with the two characters "=>" are link lines, which
+have the following syntax:
+
+=>[<whitespace>]<URL>[<whitespace><USER-FRIENDLY LINK NAME>]<CR><LF>
+
+where:
+
+* <whitespace> is any non-zero number of consecutive spaces or
+  tabs
+* Square brackets indicate that the enclosed content is
+  optional.
+* <URL> is a URL, which may be absolute or relative.  If the URL does
+  not include a scheme, a scheme of gemini:// is implied.
+
+All the following examples are valid link lines:
+
+=> gemini://example.org/
+=> gemini://example.org/ An example link
+=> gemini://example.org/foo	Another example link at the same host
+=>gemini://example.org/bar Yet another example link at the same host
+=> foo/bar/baz.txt	A relative link
+=> 	gopher://example.org:70/1 A gopher link
+
+Note that link URLs may have schemes other than gemini://.  This means
+that Gemini documents can simply and elegantly link to documents
+hosted via other protocols, unlike gophermaps which can only link to
+non-gopher content via a non-standard adaptation of the `h` item-type.
+
+Clients can present links to users in whatever fashion the client
+author wishes.
+
+1.3.5.3.3 Preformatting toggle lines
+
+Any line whose first three characters are "```" (i.e. three
+consecutive back ticks with no leading whitespace) are preformatted
+toggle lines.  These lines should NOT be included in the rendered
+output shown to the user.  Instead, these lines toggle the parser
+between preformatted mode being "on" or "off".  Preformatted mode
+should be "off" at the beginning of a document.  The current status
+of preformatted mode is the only internal state a parser is required
+to maintain.  When preformatted mode is "on", the usual rules for
+identifying line types are suspended, and all lines should be
+identified as preformatted text lines (see 1.3.5.3.4).
+
+Preformatting toggle lines can be thought of as analogous to <pre> and
+</pre> tags in HTML.
+
+1.3.5.3.4 Preformatted text lines
+
+Preformatted text lines should be presented to the user in a "neutral",
+monowidth font without any alteration to whitespace or stylistic
+enhancements.  Graphical clients should use scrolling mechanisms to
+present preformatted text lines which are longer than the client
+viewport, in preference to wrapping.  In displaying preformatted text
+lines, clients should keep in mind applications like ASCII art and
+computer source code: in particular, source code in langugaes with
+significant whitespace (e.g. Python) should be able to be copied and
+pasted from the client into a file and interpreted/compiled without
+any problems arising from the client's manner of displaying them.
+
+1.3.5.4 Advanced line types
+
+The following advanced line types MAY be recognised by advanced
+clients.  Simple clients may treat them all as text lines as per
+1.3.5.3.1 without any loss of essential function.
+
+1.3.5.4.1 Heading lines
+
+Lines beginning with "#" are heading lines.  Heading lines consist of
+one, two or three consecutive "#" characters, followed by optional
+whitespace, followed by heading text.  The number of # characters
+indicates the "level" of header;  #, ## and ### can be thought of as
+analogous to <h1>, <h2> and <h3> in HTML.
+
+Heading text should be presented to the user, and clients MAY use
+special formatting, e.g. a larger or bold font, to indicate its
+status as a header (simple clients may simply print the line,
+including its leading #s, without any styling at all).  However, the
+main motivation for the definition of heading lines is not stylistic
+but to provide a machine-readable representation of the internal
+structure of the document.  Advanced clients can use this information
+to, e.g. display an automatically generated and hierarchically
+formatted "table of contents" for a long document in a side-pane,
+allowing users to easily jump to specific sections without excessive
+scrolling.  CMS-style tools automatically generating menus or
+Atom/RSS feeds for a directory of text/gemini files can use first
+heading in the file as a human-friendly title.
+
+1.3.5.4.2 Unordered list items
+
+Lines beginning with a * are unordered list items.  This line type
+exists purely for stylistic reasons.  The * may be replaced in
+advanced clients by a bullet symbol.  Any text after the * character
+should be presented to the user as if it were a text line, i.e.
+wrapped to fit the viewport and formatted "nicely".  Advanced clients
+can take the space of the bullet symbol into account when wrapping
+long list items to ensure that all lines of text corresponding to
+the item are offset an equal distance from the left of the screen.
+
+1.4 TLS
+
+1.4.1 Version requirements
+
+Use of TLS for Gemini transactions is mandatory.
+
+Servers MUST use TLS version 1.2 or higher and SHOULD use TLS version
+1.3 or higher.  Clients MAY refuse to connect to servers using TLS
+version 1.2 or lower.
+
+1.4.2 Server certificate validation
+
+Clients can validate TLS connections however they like (including not
+at all) but the strongly RECOMMENDED approach is to implement a
+lightweight "TOFU" certificate-pinning system which treats self-signed
+certificates as first- class citizens.  This greatly reduces TLS
+overhead on the network (only one cert needs to be sent, not a whole
+chain) and lowers the barrier to entry for setting up a Gemini site
+(no need to pay a CA or setup a Let's Encrypt cron job, just make a
+cert and go).
+
+TOFU stands for "Trust On First Use" and is public-key security model
+similar to that used by OpenSSH.  The first time a Gemini client
+connects to a server, it accepts whatever certificate it is presented.
+That certificate's fingerprint and expiry date are saved in a
+persistent database (like the .known_hosts file for SSH), associated
+with the server's hostname.  On all subsequent connections to that
+hostname, the received certificate's fingerprint is computed and
+compared to the one in the database.  If the certificate is not the
+one previously received, but the previous certificate's expiry date
+has not passed, the user is shown a warning, analogous to the one web
+browser users are shown when receiving a certificate without a
+signature chain leading to a trusted CA.
+
+This model is by no means perfect, but it is not awful and is vastly
+superior to just accepting self-signed certificates unconditionally.
+
+1.4.3 Transient client certificate sessions
+
+Self-signed client certificates can optionally be used by Gemini
+clients to permit servers to recognise subsequent requests from the
+same client as belonging to a single "session".  This facilitates
+maintaining state in server-side applications.  The functionality is
+very similar to HTTP cookies, but with important differences.
+
+Whereas HTTP cookies are originally created by a webserver and given
+to a client via a response header, client certificates are created by
+the client and given to the server as part of the TLS handshake:
+Client certificates are fundamentally a client-centric means of
+identification.  Further, whereas HTTP cookies can be "resurrected" by
+webservers after a client deletes them if the server recognises the
+client by means of browser finger-printing or some other tracking
+technology (leading to unkillable "super cookies"), if a client
+deletes a client certificate and also the accompanying private key
+(which the server has never seen), then the session ID can never be
+recreated.  Thus clients not only need to opt in to a certificate
+session, but once they have done so they retain a guaranteed ability
+to opt out of it at any point and the server cannot defeat this
+ability.
+
+Gemini requests typically will be made without a client certificate
+being sent to the server.  If a requested resource is part of a
+server-side application which requires persistent state, a Gemini
+server can return a status code of 61 (see Appendix 1 below) to
+request that the client repeat the request with a "transient
+certificate" to initiate a client certificate section.
+
+Interactive clients for human users MUST inform users that such a
+session has been requested and require the user to approve generation
+of such a certificate.  Transient certificates MUST NOT be generated
+automatically.
+
+Transient certificates are limited in scope to a particular domain.
+Transient certificates MUST NOT be reused across different domains.
+
+Transient certificates MUST be permanently deleted when the matching
+server issues a response with a status code of 21 (see Appendix 1
+below).
+
+Transient certificates MUST be permanently deleted when the client
+process terminates.
+
+Transient certificates SHOULD be permanently deleted after not having
+been used for more than 24 hours.
+
+Appendix 1. Full two digit status codes
+
+10	INPUT
+
+	As per definition of single-digit code 1 in 1.3.2.
+
+20	SUCCESS
+
+	As per definition of single-digit code 2 in 1.3.2.
+
+21	SUCCESS - END OF CLIENT CERTIFICATE SESSION
+
+	The request was handled successfully and a response body will
+	follow the response header.  The <META> line is a MIME media
+	type which applies to the response body.  In addition, the
+	server is signalling the end of a transient client certificate
+	session which was previously initiated with a status 61
+	response.  The client should immediately and permanently
+	delete the certificate and accompanying private key which was
+	used in this request.
+
+30	REDIRECT - TEMPORARY
+
+	As per definition of single-digit code 3 in 1.3.2.
+
+31	REDIRECT - PERMANENT
+
+	The requested resource should be consistently requested from
+	the new URL provided in future.  Tools like search engine
+	indexers or content aggregators should update their
+	configurations to avoid requesting the old URL, and end-user
+	clients may automatically update bookmarks, etc.  Note that
+	clients which only pay attention to the initial digit of
+	status codes will treat this as a temporary redirect.  They
+	will still end up at the right place, they just won't be able
+	to make use of the knowledge that this redirect is permanent,
+	so they'll pay a small performance penalty by having to follow
+	the redirect each time.
+
+40	TEMPORARY FAILURE
+
+	As per definition of single-digit code 4 in 1.3.2.
+
+41	SERVER UNAVAILABLE
+
+	The server is unavailable due to overload or maintenance.
+	(cf HTTP 503)
+
+42	CGI ERROR
+
+	A CGI process, or similar system for generating dynamic
+	content, died unexpectedly or timed out.
+
+43	PROXY ERROR
+
+	A proxy request failed because the server was unable to
+	successfully complete a transaction with the remote host.
+	(cf HTTP 502, 504)
+
+44	SLOW DOWN
+
+	Rate limiting is in effect.  <META> is an integer number of
+	seconds which the client must wait before another request is
+	made to this server.
+	(cf HTTP 429)
+
+50	PERMANENT FAILURE
+	
+	As per definition of single-digit code 5 in 1.3.2.
+
+51	NOT FOUND
+
+	The requested resource could not be found but may be available
+	in the future.
+	(cf HTTP 404)
+	(struggling to remember this important status code?  Easy:
+	you can't find things hidden at Area 51!)
+
+52	GONE
+
+	The resource requested is no longer available and will not be
+	available again.  Search engines and similar tools should
+	remove this resource from their indices.  Content aggregators
+	should stop requesting the resource and convey to their human
+	users that the subscribed resource is gone.
+	(cf HTTP 410)
+
+53	PROXY REQUEST REFUSED
+
+	The request was for a resource at a domain not served by the
+	server and the server does not accept proxy requests.
+
+59	BAD REQUEST
+
+	The server was unable to parse the client's request,
+	presumably due to a malformed request.
+	(cf HTTP 400)
+
+60	CLIENT CERTIFICATE REQUIRED
+
+	As per definition of single-digit code 6 in 1.3.2.
+
+61	TRANSIENT CERTIFICATE REQUESTED
+
+	The server is requesting the initiation of a transient client
+	certificate session, as described in 1.4.3.  The client should
+	ask the user if they want to accept this and, if so, generate
+	a disposable key/cert pair and re-request the resource using it.
+	The key/cert pair should be destroyed when the client quits,
+	or some reasonable time after it was last used (24 hours?
+	Less?)
+
+62	AUTHORISED CERTIFICATE REQUIRED
+
+	This resource is protected and a client certificate which the
+	server accepts as valid must be used - a disposable key/cert
+	generated on the fly in response to this status is not
+	appropriate as the server will do something like compare the
+	certificate fingerprint against a white-list of allowed
+	certificates.  The client should ask the user if they want to
+	use a pre-existing certificate from a stored "key chain".
+
+63	CERTIFICATE NOT ACCEPTED
+
+	The supplied client certificate is not valid for accessing the
+	requested resource.
+
+64	FUTURE CERTIFICATE REJECTED
+
+	The supplied client certificate was not accepted because its
+	validity start date is in the future.
+
+65	EXPIRED CERTIFICATE REJECTED
+
+	The supplied client certificate was not accepted because its
+	expiry date has passed.
+
