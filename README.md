@@ -1,2 +1,5 @@
 # geminid
-Gemini Server in C
+A Gemini Server in C
+
+## Building
+Edit Makefile to your needs, do `make geminid`
