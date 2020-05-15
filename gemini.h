@@ -37,8 +37,10 @@
 #define MAXSTATUSSIZ 3
 #define MAXWHITESIZ 11
 
+/* Some configuration */
 #define DEFAULT_DOCUMENT "index.gem"
 #define DOCUMENT_ROOT "docroot"
+#define LISTEN_PORT 1965
 
 
 int handle_request();

@@ -50,7 +50,7 @@ int main(int argc, char **argv)
 
     configure_context(ctx);
 
-    sock = create_socket(2222);
+    sock = create_socket(LISTEN_PORT);
 
     /* Handle connections */
     while(1) {
