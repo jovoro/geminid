@@ -38,8 +38,10 @@
 #include <sys/types.h>
 #include <sys/malloc.h>
 #include <sys/stat.h>
+#include <magic.h>
 #include "gemini.h"
 #include "util.h"
+#include "mime.h"
 
 int read_request(SSL *ssl, char *buffer) {
 	return SSL_read(ssl, buffer, MAXREQSIZ);
@@ -105,6 +107,12 @@ int handle_request(SSL *ssl) {
 	void *fb;
 	FILE *fh;
 	long fsize;
+	magic_t magic;
+	const char *magicstr;
+	char mime[MAXBUF];
+	char tmpbuf[MAXBUF];
+	int pathlen;
+	int pathpos;
 
 	memset(reqbuf, 0, MAXBUF);
 	memset(resbuf, 0, MAXBUF);
@@ -117,6 +125,33 @@ int handle_request(SSL *ssl) {
 	snprintf(localpath, MAXBUF, "%s/%s", DOCUMENT_ROOT, path);
 
 	if(access(localpath, R_OK) != -1) {
+		/* Assume text/gemini for *.gem files */
+		i = 0;
+		pathlen = strlen(path);
+		pathpos = pathlen-4;
+		while(i < pathlen) {
+			tmpbuf[i] = path[pathpos+i];
+			i++;
+		}
+		tmpbuf[i] = '\0';
+		
+		if(strncmp(tmpbuf, ".gem", 4) != 0) {
+			magic = magic_open(MAGIC_MIME_TYPE);
+			magic_load(magic, NULL);
+			magic_compile(magic, NULL);
+			magicstr = magic_file(magic, localpath);
+		
+			if(magicstr == NULL)
+				strncpy(mime, "text/gemini; charset=utf-8", 26);
+			else
+				strncpy(mime, magicstr, MAXBUF);
+	
+			magic_close(magic);
+		} else {
+			strncpy(mime, "text/gemini; charset=utf-8", 26);
+		}
+
+		/* Read file */
 		fh = fopen(localpath, "r");
 		if(fh == NULL)
 			return -1;
@@ -131,7 +166,8 @@ int handle_request(SSL *ssl) {
 		fread(fb, sizeof(char), fsize, fh);
 		fclose(fh);
 
-		write_gemini_response(ssl, STATUS_SUCCESS, 0, "text/gemini", 10, fb, fsize);
+		/* Finally write response */
+		write_gemini_response(ssl, STATUS_SUCCESS, 0, mime, strlen(mime), fb, fsize);
 		free(fb);
 	} else {
 		memset(resbuf, 0, MAXBUF);

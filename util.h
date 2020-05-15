@@ -28,3 +28,4 @@
  */
 
 char *trim(char *str);
+char *substring(char *s, int pos, int length);

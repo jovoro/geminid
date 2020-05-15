@@ -28,24 +28,27 @@
 # 
 
 CC=/usr/bin/cc
-CFLAGS=-lssl -lcrypto
-DEBUGFLAGS=-g
-OBJ=main.o tls.o gemini.o util.o
+CFLAGS=-lmagic -lssl -lcrypto
+DEBUGFLAGS=-g -DGEMINID_DEBUG
+OBJ=main.o tls.o gemini.o util.o mime.o
 
 geminid: $(OBJ)
 	$(CC) -o geminid $(DEBUGLAGS) $(CFLAGS) $(OBJ)
 
 main.o: main.c
-	$(CC) $(DEBUGLAGS) -c main.c
+	$(CC) $(DEBUGFLAGS) -c main.c
 
 tls.o: tls.c
-	$(CC) $(DEBUGLAGS) -c tls.c
+	$(CC) $(DEBUGFLAGS) -c tls.c
 
 gemini.o: gemini.c
-	$(CC) $(DEBUGLAGS) -c gemini.c
+	$(CC) $(DEBUGFLAGS) -c gemini.c
 
 util.o: util.c
-	$(CC) $(DEBUGLAGS) -c util.c
+	$(CC) $(DEBUGFLAGS) -c util.c
+
+mime.o: mime.c
+	$(CC) $(DEBUGFLAGS) -c mime.c
 
 cert:
 	openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes # nodes: No DES, do not prompt for pass

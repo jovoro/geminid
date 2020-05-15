@@ -27,14 +27,18 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <ctype.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/malloc.h>
+#include "util.h"
 
 /* Stolen from https://stackoverflow.com/questions/122616/how-do-i-trim-leading-trailing-whitespace-in-a-standard-way */
 
-char *trim(char *str)
-{
+char *trim(char *str) {
     size_t len = 0;
     char *frontp = str;
     char *endp = NULL;
@@ -71,4 +75,24 @@ char *trim(char *str)
     }
 
     return str;
+}
+/* substring(index.gem, 5, 9)*/
+char *substring(char *s, int pos, int length) {
+   char *sp;
+   int c;
+
+   sp = malloc(length+1);
+
+   if(sp == NULL) {
+      printf("Unable to allocate memory.\n");
+      exit(1);
+   }
+
+   for (c = 0 ; c < length ; c++) {
+      *(sp+c) = *(sp+pos-1);
+      s++;
+   }
+
+   *(sp+c) = '\0';
+   return sp;
 }
