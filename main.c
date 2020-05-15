@@ -62,6 +62,7 @@ int main(int argc, char **argv)
 	int sock;
 	int pid;
 	int client;
+	int true = 1;
 	uint len;
 	struct sockaddr_in addr;
 	SSL_CTX *ctx;
@@ -70,6 +71,7 @@ int main(int argc, char **argv)
 	ctx = create_context();
 	configure_context(ctx);
 	sock = create_socket(LISTEN_PORT);
+	setsockopt(sock,SOL_SOCKET,SO_REUSEADDR,&true,sizeof(int));
 
 	while(1) {
 		len = sizeof(addr);
