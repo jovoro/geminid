@@ -129,7 +129,7 @@ int handle_request(SSL *ssl) {
 	snprintf(localpath, MAXBUF, "%s/%s", DOCUMENT_ROOT, path);
 
 	if(access(localpath, R_OK) != -1) {
-		/* Assume text/gemini for *.gem files */
+		/* Assume text/gemini for *.gmi files */
 		i = 0;
 		pathlen = strlen(path);
 		pathpos = pathlen-4;
@@ -139,7 +139,7 @@ int handle_request(SSL *ssl) {
 		}
 		tmpbuf[i] = '\0';
 		
-		if(strncmp(tmpbuf, ".gem", 4) != 0) {
+		if(strncmp(tmpbuf, ".gmi", 4) != 0) {
 			magic = magic_open(MAGIC_MIME_TYPE);
 			magic_load(magic, NULL);
 			magic_compile(magic, NULL);

@@ -38,7 +38,7 @@
 #define MAXWHITESIZ 11
 
 /* Some configuration */
-#define DEFAULT_DOCUMENT "index.gem"
+#define DEFAULT_DOCUMENT "index.gmi"
 #define DOCUMENT_ROOT "docroot"
 #define LISTEN_PORT 1965
 
