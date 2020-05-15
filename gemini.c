@@ -46,6 +46,7 @@
 #include "gemini.h"
 #include "util.h"
 #include "mime.h"
+#include "file.h"
 
 int read_request(SSL *ssl, char *buffer) {
 	return SSL_read(ssl, buffer, MAXREQSIZ);
@@ -101,25 +102,17 @@ int parse_request(char *buffer, int reqlen, char *host, char *path) {
 int handle_request(SSL *ssl) {
 	int reqlen = 0;
 	int reslen = 0;
+	int mimelen = 0;
 	int i;
-	int status; 
 	char reqbuf[MAXBUF];
-	char resbuf[MAXBUF];
+	char *resbuf;
 	char host[MAXBUF];
 	char path[MAXBUF];
 	char localpath[MAXBUF];
-	void *fb;
-	FILE *fh;
-	long fsize;
-	magic_t magic;
-	const char *magicstr;
 	char mime[MAXBUF];
-	char tmpbuf[MAXBUF];
-	int pathlen;
-	int pathpos;
+	struct stat statbuf;
 
 	memset(reqbuf, 0, MAXBUF);
-	memset(resbuf, 0, MAXBUF);
 	memset(host, 0, MAXBUF);
 	memset(path, 0, MAXBUF);
 	memset(localpath, 0, MAXBUF);
@@ -129,55 +122,36 @@ int handle_request(SSL *ssl) {
 	snprintf(localpath, MAXBUF, "%s/%s", DOCUMENT_ROOT, path);
 
 	if(access(localpath, R_OK) != -1) {
-		/* Assume text/gemini for *.gmi files */
-		i = 0;
-		pathlen = strlen(path);
-		pathpos = pathlen-4;
-		while(i < pathlen) {
-			tmpbuf[i] = path[pathpos+i];
-			i++;
+		/* Local path is readable; Find out, if file or directory */
+		/* FIXME: What happens if it is neither of both..? Hm... */
+		if((i = stat(localpath, &statbuf)) != 0) {
+			write_gemini_response(ssl, STATUS_PERMFAIL, 1, "I/O Error", 9, "", 0);
+			return -1;
 		}
-		tmpbuf[i] = '\0';
-		
-		if(strncmp(tmpbuf, ".gmi", 4) != 0) {
-			magic = magic_open(MAGIC_MIME_TYPE);
-			magic_load(magic, NULL);
-			magic_compile(magic, NULL);
-			magicstr = magic_file(magic, localpath);
-		
-			if(magicstr == NULL)
-				strncpy(mime, "text/gemini; charset=utf-8", 26);
-			else
-				strncpy(mime, magicstr, MAXBUF);
-	
-			magic_close(magic);
-		} else {
-			/*strncpy(mime, "text/gemini; charset=utf-8", 26);*/
+		if(S_ISDIR(statbuf.st_mode)) {
+			/* path is directory */
+			resbuf = malloc(MAXBUF);
 			strncpy(mime, "text/gemini", 11);
+			mimelen = 11;
+			reslen = read_directory(localpath, resbuf);
+		} else {
+			/* path is file, maybe... */
+			resbuf = malloc(statbuf.st_size + 1);
+			mimelen = read_file_meta(localpath, mime);
+			reslen = read_file(localpath, resbuf);
 		}
-
-		/* Read file */
-		fh = fopen(localpath, "r");
-		if(fh == NULL)
+		if(reslen < 1) {
+			write_gemini_response(ssl, STATUS_PERMFAIL, 1, "I/O Error", 9, "", 0);
 			return -1;
-
-		fseek(fh, 0, SEEK_END);
-		fsize = ftell(fh);
-		fseek(fh, 0, SEEK_SET);
-		fb = malloc(fsize + 1);
-		if(fb == NULL)
-			return -1;
-
-		fread(fb, sizeof(char), fsize, fh);
-		fclose(fh);
-
-		/* Finally write response */
-		write_gemini_response(ssl, STATUS_SUCCESS, 0, mime, strlen(mime), fb, fsize);
-		free(fb);
+		}
+		write_gemini_response(ssl, STATUS_SUCCESS, 0, mime, mimelen, resbuf, reslen);
+		free(resbuf);
 	} else {
-		memset(resbuf, 0, MAXBUF);
-		reslen = 0;
-		write_gemini_response(ssl, STATUS_TEMPFAIL, 1, "File not found", 14, resbuf, reslen);
+		/* Local path is not readable. Currently, this simply means, that the file
+		 * does not exist and we send the according response. But in the future
+		 * this could mean more than that.
+		 */
+		write_gemini_response(ssl, STATUS_TEMPFAIL, 1, "File not found", 14, "", 0);
 	}
 
 	return 1;

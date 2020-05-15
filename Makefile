@@ -31,7 +31,7 @@ CC=/usr/bin/cc
 CFLAGS=-lmagic -lssl -lcrypto
 DEBUGFLAGS=-g -DGEMINID_DEBUG
 TLSFLAGS= # Use -DTLS_USE_V1_2_METHOD for older versions of OpenSSL
-OBJ=main.o tls.o gemini.o util.o mime.o
+OBJ=main.o tls.o gemini.o util.o mime.o file.o
 
 geminid: $(OBJ)
 	$(CC) -o geminid $(DEBUGLAGS) $(CFLAGS) $(OBJ)
@@ -50,6 +50,9 @@ util.o: util.c
 
 mime.o: mime.c
 	$(CC) $(DEBUGFLAGS) -c mime.c
+
+file.o: file.c
+	$(CC) $(DEBUGFLAGS) -c file.c
 
 cert:
 	openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes # nodes: No DES, do not prompt for pass
