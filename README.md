@@ -14,5 +14,4 @@ Edit Makefile and gemini.h to your needs, do `make geminid`
 
 ## Running
 Just run the produced executable geminid.
-
-
+You can find a demonstration of it running at gemini://gemini.uxq.ch/
