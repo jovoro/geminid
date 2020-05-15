@@ -57,4 +57,4 @@ clean:
 	rm -f *.o *.core geminid
 
 veryclean: clean
-	rm -f *.pem *.key
+	rm -f *.pem *.key *.mgc
