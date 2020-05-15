@@ -6,7 +6,8 @@ serve content. But the goal is to have a compliant gemini server written in C.
 ## Configuring
 
 There is no configuration file yet. Some tunable parameters are avaible in
-gemini.h.
+gemini.h. For convenience you can use `make cert` to generate a self-signed
+certificate.
 
 ## Building
 Edit Makefile and gemini.h to your needs, do `make geminid`
