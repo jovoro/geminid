@@ -36,7 +36,11 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <sys/types.h>
+#ifdef __linux__
+#include <stdlib.h>
+#else
 #include <sys/malloc.h>
+#endif /* __linux__ */
 #include <sys/stat.h>
 #include <magic.h>
 #include "gemini.h"
@@ -148,7 +152,8 @@ int handle_request(SSL *ssl) {
 	
 			magic_close(magic);
 		} else {
-			strncpy(mime, "text/gemini; charset=utf-8", 26);
+			/*strncpy(mime, "text/gemini; charset=utf-8", 26);*/
+			strncpy(mime, "text/gemini", 11);
 		}
 
 		/* Read file */

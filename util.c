@@ -33,7 +33,11 @@
 #include <ctype.h>
 #include <string.h>
 #include <sys/types.h>
+#ifdef __linux__
+#include <stdlib.h>
+#else
 #include <sys/malloc.h>
+#endif /* __linux__ */
 #include "util.h"
 
 /* Stolen from https://stackoverflow.com/questions/122616/how-do-i-trim-leading-trailing-whitespace-in-a-standard-way */
