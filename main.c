@@ -85,6 +85,7 @@ int main(int argc, char **argv)
 		} else if (pid > 0) {
 			// Parent
 			fprintf(stderr, "Stated child process %d\n", pid);
+			close(client);
 		} else {
 			// Failed
 			perror("Unable to fork");
