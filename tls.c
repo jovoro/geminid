@@ -80,11 +80,11 @@ SSL_CTX *create_context()
 {
     const SSL_METHOD *method;
     SSL_CTX *ctx;
-#if OPENSSL_VERSION_NUMER > 0x010100000
-    method = TLS_server_method();
-#else
+#ifdef TLS_USE_V1_2_METHOD
     method = TLSv1_2_server_method();
-#endif /* OPENSSL_VERSION_NUMBER */
+#else
+    method = TLS_server_method();
+#endif /*TLS_USE_V1_2_METHOD*/
 
     ctx = SSL_CTX_new(method);
     if (!ctx) {

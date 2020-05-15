@@ -30,6 +30,7 @@
 CC=/usr/bin/cc
 CFLAGS=-lmagic -lssl -lcrypto
 DEBUGFLAGS=-g -DGEMINID_DEBUG
+TLSFLAGS= # Use -DTLS_USE_V1_2_METHOD for older versions of OpenSSL
 OBJ=main.o tls.o gemini.o util.o mime.o
 
 geminid: $(OBJ)
@@ -39,7 +40,7 @@ main.o: main.c
 	$(CC) $(DEBUGFLAGS) -c main.c
 
 tls.o: tls.c
-	$(CC) $(DEBUGFLAGS) -c tls.c
+	$(CC) $(DEBUGFLAGS) $(TLSFLAGS) -c tls.c
 
 gemini.o: gemini.c
 	$(CC) $(DEBUGFLAGS) -c gemini.c
