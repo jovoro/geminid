@@ -39,31 +39,8 @@
 #include "tls.h"
 #include "gemini.h"
 
-
-int main(int argc, char **argv)
-{
-    int sock;
-    SSL_CTX *ctx;
-
-    init_openssl();
-    ctx = create_context();
-
-    configure_context(ctx);
-
-    sock = create_socket(LISTEN_PORT);
-
-    /* Handle connections */
-    while(1) {
-        struct sockaddr_in addr;
-        uint len = sizeof(addr);
+void initWorker(int client, SSL_CTX *ctx) {
         SSL *ssl;
-        const char reply[] = "test\n";
-
-        int client = accept(sock, (struct sockaddr*)&addr, &len);
-        if (client < 0) {
-            perror("Unable to accept");
-            exit(EXIT_FAILURE);
-        }
 
         ssl = SSL_new(ctx);
         SSL_set_fd(ssl, client);
@@ -78,9 +55,44 @@ int main(int argc, char **argv)
         SSL_shutdown(ssl);
         SSL_free(ssl);
         close(client);
-    }
-
-    close(sock);
-    SSL_CTX_free(ctx);
-    cleanup_openssl();
 }
+
+int main(int argc, char **argv)
+{
+	int sock;
+	int pid;
+	int client;
+	uint len;
+	struct sockaddr_in addr;
+	SSL_CTX *ctx;
+
+	init_openssl();
+	ctx = create_context();
+	configure_context(ctx);
+	sock = create_socket(LISTEN_PORT);
+
+	while(1) {
+		len = sizeof(addr);
+		client = accept(sock, (struct sockaddr*)&addr, &len);
+		if (client < 0) {
+			perror("Unable to accept");
+			exit(EXIT_FAILURE);
+		}
+		if((pid = fork()) == 0) {
+			// Child
+			initWorker(client, ctx);
+			exit(0);
+		} else if (pid > 0) {
+			// Parent
+			fprintf(stderr, "Stated child process %d\n", pid);
+		} else {
+			// Failed
+			perror("Unable to fork");
+		}
+	}
+
+	close(sock);
+	SSL_CTX_free(ctx);
+	cleanup_openssl();
+}
+
