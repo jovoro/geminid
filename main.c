@@ -86,7 +86,7 @@ int main(int argc, char **argv)
 			exit(0);
 		} else if (pid > 0) {
 			// Parent
-			fprintf(stderr, "Stated child process %d\n", pid);
+			fprintf(stderr, "Started child process %d\n", pid);
 			close(client);
 		} else {
 			// Failed
