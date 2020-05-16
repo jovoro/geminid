@@ -43,6 +43,8 @@
 int listen_port;
 char document_root[MAXBUF];
 char default_document[MAXBUF];
+char ssl_private_path[MAXBUF];
+char ssl_public_path[MAXBUF];
 
 void initWorker(int client, SSL_CTX *ctx) {
         SSL *ssl;
@@ -81,9 +83,18 @@ int main(int argc, char **argv)
 	listen_port = LISTEN_PORT;
 	strncpy(default_document, DEFAULT_DOCUMENT, MAXBUF);
 	strncpy(document_root, DOCUMENT_ROOT, MAXBUF);
+	strncpy(ssl_public_path, "cert.pem", MAXBUF);
+	strncpy(ssl_private_path, "key.pem", MAXBUF);
 
-	while((opt = getopt(argc, argv, "d:p:r:")) != -1) {
+	while((opt = getopt(argc, argv, "c:d:l:p:r:")) != -1) {
 		switch(opt) {
+			case 'c':
+				if(strlen(optarg) < 1)
+					usage();
+
+				strncpy(ssl_public_path, optarg, MAXBUF);
+				break;
+				
 			case 'd':
 				if(strlen(optarg) < 1)
 					usage();
@@ -91,11 +102,18 @@ int main(int argc, char **argv)
 				strncpy(default_document, optarg, MAXBUF);
 				break;
 
-			case 'p':
+			case 'l':
 				if(strlen(optarg) < 1)
 					usage();
 
 				sscanf(optarg, "%d", &listen_port);
+				break;
+
+			case 'p':
+				if(strlen(optarg) < 1)
+					usage();
+
+				strncpy(ssl_private_path, optarg, MAXBUF);
 				break;
 
 			case 'r':
@@ -110,7 +128,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	fprintf(stderr, "default_document: %s\nlisten_port: %d\ndocument_root: %s\n\n", default_document, listen_port, document_root);
+	fprintf(stderr, "default_document: %s\nlisten_port: %d\ndocument_root: %s\npublic key: %s\nprivate key: %s\n\n\n", default_document, listen_port, document_root, ssl_public_path, ssl_private_path);
 	
 	init_openssl();
 	ctx = create_context();
