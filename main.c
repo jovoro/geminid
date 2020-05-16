@@ -62,8 +62,8 @@ void initWorker(int client, SSL_CTX *ctx) {
         close(client);
 }
 
-void usage() {
-	fprintf(stderr, "Usage: %s [-d document] [-p port] [-r directory]");
+void usage(char *progname) {
+	fprintf(stderr, "Usage: %s [-d document] [-p port] [-r directory]\n", progname);
 	exit(EXIT_FAILURE);
 }
 
@@ -86,27 +86,27 @@ int main(int argc, char **argv)
 		switch(opt) {
 			case 'd':
 				if(strlen(optarg) < 1)
-					usage();
+					usage(argv[0]);
 
 				strncpy(default_document, optarg, MAXBUF);
 				break;
 
 			case 'p':
 				if(strlen(optarg) < 1)
-					usage();
+					usage(argv[0]);
 
 				sscanf(optarg, "%d", &listen_port);
 				break;
 
 			case 'r':
 				if(strlen(optarg) < 1)
-					usage();
+					usage(argv[0]);
 
 				strncpy(document_root, optarg, MAXBUF);
 				break;
 
 			default:
-				usage();
+				usage(argv[0]);
 		}
 	}
 
