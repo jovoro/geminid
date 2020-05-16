@@ -128,6 +128,14 @@ int handle_request(SSL *ssl) {
 		}
 		if(S_ISDIR(statbuf.st_mode)) {
 			/* path is directory */
+
+			if(path[strlen(path)-1] != '/') {
+				/* redirect to correct location with trailing slash (status 31) */
+				snprintf(mime, MAXBUF, "%s/", reqbuf);
+				write_gemini_response(ssl, STATUS_REDIRECT, 1, mime, strlen(mime), "", 0);
+				return 0;
+			}
+
 			snprintf(defdocpath, MAXBUF, "%s/%s", localpath, DEFAULT_DOCUMENT);
 			if(access(defdocpath, R_OK) != -1) {
 				if((i = stat(defdocpath, &defdocstatbuf)) == 0) {
