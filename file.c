@@ -102,7 +102,7 @@ int read_directory(char *path, char *requesturl, void *buffer) {
 	char localpath[MAXBUF];
 	char tmpbuf[MAXBUF];
 
-	snprintf(localpath, MAXBUF, "%s/%s", DOCUMENT_ROOT, path);
+	snprintf(localpath, MAXBUF, "%s/%s", document_root, path);
 
 	dp = opendir(localpath);
 	if(dp == NULL)

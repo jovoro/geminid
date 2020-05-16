@@ -120,7 +120,7 @@ int handle_request(SSL *ssl) {
 
 	reqlen = read_request(ssl, reqbuf);
 	i = parse_request(reqbuf, reqlen, host, path);
-	snprintf(localpath, MAXBUF, "%s/%s", DOCUMENT_ROOT, path);
+	snprintf(localpath, MAXBUF, "%s/%s", document_root, path);
 
 	if(access(localpath, R_OK) != -1) {
 		/* Local path is readable; Find out, if file or directory */
@@ -139,7 +139,7 @@ int handle_request(SSL *ssl) {
 				return 0;
 			}
 
-			snprintf(defdocpath, MAXBUF, "%s/%s", localpath, DEFAULT_DOCUMENT);
+			snprintf(defdocpath, MAXBUF, "%s/%s", localpath, default_document);
 			if(access(defdocpath, R_OK) != -1) {
 				if((i = stat(defdocpath, &defdocstatbuf)) == 0) {
 					/* We have a default document, read it */
@@ -154,7 +154,7 @@ int handle_request(SSL *ssl) {
 				resbuf = malloc(MAXBUF);
 				strncpy(mime, "text/gemini", 11);
 				mimelen = 11;
-				reslen = read_directory(path, reqbuf, resbuf); /* DOCUMENT_ROOT will be prepended again */
+				reslen = read_directory(path, reqbuf, resbuf); /* document_root will be prepended again */
 			}
 		} else {
 			/* path is file, maybe... */

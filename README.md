@@ -13,5 +13,9 @@ certificate.
 Edit Makefile and gemini.h to your needs, do `make geminid`
 
 ## Running
-Just run the produced executable geminid.
+Just run the produced executable geminid. Some options are now configurable via command line parameters:
+- `-d <file>`: Filename of the default document, which is loaded when a directory is requested. Default: index.gmi
+- `-p <port>`: Use different listen port than 1965.
+- `-r <path>`: Path of the document root directory. Default is `docroot` (local to the process)
+
 You can find a demonstration of it running at gemini://gemini.uxq.ch/

@@ -30,6 +30,7 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#include <stdlib.h>
 #include <string.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -38,6 +39,10 @@
 #include <openssl/err.h>
 #include "tls.h"
 #include "gemini.h"
+
+int listen_port;
+char document_root[MAXBUF];
+char default_document[MAXBUF];
 
 void initWorker(int client, SSL_CTX *ctx) {
         SSL *ssl;
@@ -57,22 +62,62 @@ void initWorker(int client, SSL_CTX *ctx) {
         close(client);
 }
 
+void usage() {
+	fprintf(stderr, "Usage: %s [-d document] [-p port] [-r directory]");
+	exit(EXIT_FAILURE);
+}
+
 int main(int argc, char **argv)
 {
 	int sock;
 	int pid;
 	int client;
 	int true = 1;
+	int opt;
 	uint len;
 	struct sockaddr_in addr;
 	SSL_CTX *ctx;
 
+	listen_port = LISTEN_PORT;
+	strncpy(default_document, DEFAULT_DOCUMENT, MAXBUF);
+	strncpy(document_root, DOCUMENT_ROOT, MAXBUF);
+
+	while((opt = getopt(argc, argv, "d:p:r:")) != -1) {
+		switch(opt) {
+			case 'd':
+				if(strlen(optarg) < 1)
+					usage();
+
+				strncpy(default_document, optarg, MAXBUF);
+				break;
+
+			case 'p':
+				if(strlen(optarg) < 1)
+					usage();
+
+				sscanf(optarg, "%d", &listen_port);
+				break;
+
+			case 'r':
+				if(strlen(optarg) < 1)
+					usage();
+
+				strncpy(document_root, optarg, MAXBUF);
+				break;
+
+			default:
+				usage();
+		}
+	}
+
+	fprintf(stderr, "default_document: %s\nlisten_port: %d\ndocument_root: %s\n\n", default_document, listen_port, document_root);
+	
 	init_openssl();
 	ctx = create_context();
 	configure_context(ctx);
-	sock = create_socket(LISTEN_PORT);
+	sock = create_socket(listen_port);
 	setsockopt(sock,SOL_SOCKET,SO_REUSEADDR,&true,sizeof(int));
-
+	
 	while(1) {
 		len = sizeof(addr);
 		client = accept(sock, (struct sockaddr*)&addr, &len);
