@@ -74,7 +74,6 @@ int parse_request(char *buffer, int reqlen, char *host, char *path) {
 	int len;
 	int i;
 
-/*	memset(buffer + MAXREQSIZ, '\0', MAXBUF-MAXREQSIZ); */
 	*(buffer+reqlen) = '\0';
 	trim(buffer);
 	len = strlen(buffer);
@@ -88,12 +87,9 @@ int parse_request(char *buffer, int reqlen, char *host, char *path) {
 		tmpbuf[len+10] = '\0';
 		strncpy(buffer, tmpbuf, len+10);
 		free(tmpbuf);
-	} 
-	sscanf(buffer, "gemini://%99[^/]/%99[^\n]", host, path);
-	if(strlen(path) == 0) {
-		strncpy(path, DEFAULT_DOCUMENT, strlen(DEFAULT_DOCUMENT));
 	}
-	
+
+	sscanf(buffer, "gemini://%99[^/]/%99[^\n]", host, path);
 	fprintf(stderr, "%s\t%s %s\n", buffer, host, path);
 
 	return 1;
@@ -108,9 +104,11 @@ int handle_request(SSL *ssl) {
 	char *resbuf;
 	char host[MAXBUF];
 	char path[MAXBUF];
+	char defdocpath[MAXBUF];
 	char localpath[MAXBUF];
 	char mime[MAXBUF];
 	struct stat statbuf;
+	struct stat defdocstatbuf;
 
 	memset(reqbuf, 0, MAXBUF);
 	memset(host, 0, MAXBUF);
@@ -130,10 +128,23 @@ int handle_request(SSL *ssl) {
 		}
 		if(S_ISDIR(statbuf.st_mode)) {
 			/* path is directory */
-			resbuf = malloc(MAXBUF);
-			strncpy(mime, "text/gemini", 11);
-			mimelen = 11;
-			reslen = read_directory(localpath, resbuf);
+			snprintf(defdocpath, MAXBUF, "%s/%s", localpath, DEFAULT_DOCUMENT);
+			if(access(defdocpath, R_OK) != -1) {
+				if((i = stat(defdocpath, &defdocstatbuf)) == 0) {
+					/* We have a default document, read it */
+					resbuf = malloc(defdocstatbuf.st_size + 1);
+					mimelen = read_file_meta(defdocpath, mime);
+					reslen = read_file(defdocpath, resbuf);
+				} else {
+					write_gemini_response(ssl, STATUS_PERMFAIL, 1, "I/O Error", 9, "", 0);
+				}
+			} else {
+				/* No default document, list directory */
+				resbuf = malloc(MAXBUF);
+				strncpy(mime, "text/gemini", 11);
+				mimelen = 11;
+				reslen = read_directory(path, reqbuf, resbuf); /* DOCUMENT_ROOT will be prepended again */
+			}
 		} else {
 			/* path is file, maybe... */
 			resbuf = malloc(statbuf.st_size + 1);

@@ -32,6 +32,7 @@
 #include <string.h>
 #include <magic.h>
 #include <dirent.h>
+#include <sys/stat.h>
 #include "gemini.h"
 #include "file.h"
 
@@ -92,20 +93,26 @@ int read_file(char *path, void *buffer) {
 	return result;
 }
 
-int read_directory(char *path, void *buffer) {
+int read_directory(char *path, char *requesturl, void *buffer) {
 	DIR *dp;
+	struct stat statbuf;
 	struct dirent *ep;
 	int chars_avail = MAXBUF-1;
+	int i;
+	char localpath[MAXBUF];
+	char tmpbuf[MAXBUF];
 
-	dp = opendir(path);
+	snprintf(localpath, MAXBUF, "%s/%s", DOCUMENT_ROOT, path);
+
+	dp = opendir(localpath);
 	if(dp == NULL)
 		return -1;
 
 	memset(buffer, 0, MAXBUF);
 
-	strncat(buffer, "# Directory listing of ", 23);
+	strncat(buffer, "# Directory listing of /", 24);
 
-	chars_avail -= 23;
+	chars_avail -= 24;
 	strncat(buffer, path, chars_avail);
 	chars_avail -= strlen(path);
 	if(chars_avail < 1)
@@ -115,24 +122,38 @@ int read_directory(char *path, void *buffer) {
 	chars_avail -= 2;	
 
 	while ((ep = readdir(dp)) != NULL) {
-		fprintf(stderr, "- %s\n", ep->d_name);
 		if(strncmp(ep->d_name, ".", 1) == 0 || strncmp(ep->d_name, "..", 2) == 0)
 			continue;
 
 		if(chars_avail < 1)
 			return -1;
 
-		strncat(buffer, "=> ", 3);
-		chars_avail -= 3;
-		strncat(buffer, ep->d_name, strlen(ep->d_name));
-		chars_avail -= strlen(ep->d_name);
-		strncat(buffer, "\r\n", 2);
-		chars_avail -= 2;
-
+		snprintf(tmpbuf, MAXBUF, "%s/%s", localpath, ep->d_name);
+		if((i = stat(tmpbuf, &statbuf)) == 0) {
+			strncat(buffer, "=> ", 3);
+			chars_avail -= 3;
+			strncat(buffer, requesturl, strlen(requesturl));
+			chars_avail -= strlen(requesturl);
+			strncat(buffer, ep->d_name, strlen(ep->d_name));
+			chars_avail -= strlen(ep->d_name);
+			if(S_ISDIR(statbuf.st_mode)) {
+				strncat(buffer, "/", 1);
+				chars_avail -= 1;
+			}
+			strncat(buffer, " ", 1);
+			chars_avail -= 1;
+			strncat(buffer, ep->d_name, strlen(ep->d_name));
+			chars_avail -= strlen(ep->d_name);
+			if(S_ISDIR(statbuf.st_mode)) {
+				strncat(buffer, "/", 1);
+				chars_avail -= 1;
+			}
+			strncat(buffer, "\r\n", 2);
+			chars_avail -= 2;
+		}
 	}
 	closedir(dp);
 
-	fprintf(stderr, buffer, MAXBUF-chars_avail);
 	return MAXBUF - chars_avail - 1;
  
 }
