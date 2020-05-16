@@ -90,6 +90,9 @@ int parse_request(char *buffer, int reqlen, char *host, char *path) {
 	}
 
 	sscanf(buffer, "gemini://%99[^/]/%99[^\n]", host, path);
+	if(strlen(path) < 1)
+		strncpy(path, "/", 1);
+
 	fprintf(stderr, "%s\t%s %s\n", buffer, host, path);
 
 	return 1;
