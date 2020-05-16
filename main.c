@@ -90,7 +90,7 @@ int main(int argc, char **argv)
 		switch(opt) {
 			case 'c':
 				if(strlen(optarg) < 1)
-					usage();
+					usage(argv[0]);
 
 				strncpy(ssl_public_path, optarg, MAXBUF);
 				break;
@@ -111,7 +111,7 @@ int main(int argc, char **argv)
 
 			case 'p':
 				if(strlen(optarg) < 1)
-					usage();
+					usage(argv[0]);
 
 				strncpy(ssl_private_path, optarg, MAXBUF);
 				break;
