@@ -47,6 +47,7 @@
 #include "util.h"
 #include "mime.h"
 #include "file.h"
+#include "log.h"
 
 int read_request(SSL *ssl, char *buffer) {
 	return SSL_read(ssl, buffer, MAXREQSIZ);
@@ -93,12 +94,10 @@ int parse_request(char *buffer, int reqlen, char *host, char *path) {
 	if(strlen(path) < 1)
 		strncpy(path, "/", 1);
 
-	fprintf(stderr, "%s\t%s %s\n", buffer, host, path);
-
 	return 1;
 }
 
-int handle_request(SSL *ssl) {
+int handle_request(SSL *ssl, FILE *access_log, FILE *error_log) {
 	int reqlen = 0;
 	int reslen = 0;
 	int mimelen = 0;
@@ -127,6 +126,7 @@ int handle_request(SSL *ssl) {
 		/* FIXME: What happens if it is neither of both..? Hm... */
 		if((i = stat(localpath, &statbuf)) != 0) {
 			write_gemini_response(ssl, STATUS_PERMFAIL, 1, "I/O Error", 9, "", 0);
+			log_access(access_log, reqbuf, host, path, STATUS_PERMFAIL, 1, 0, "-", "-");
 			return -1;
 		}
 		if(S_ISDIR(statbuf.st_mode)) {
@@ -136,6 +136,7 @@ int handle_request(SSL *ssl) {
 				/* redirect to correct location with trailing slash (status 31) */
 				snprintf(mime, MAXBUF, "%s/", reqbuf);
 				write_gemini_response(ssl, STATUS_REDIRECT, 1, mime, strlen(mime), "", 0);
+				log_access(access_log, reqbuf, host, path, STATUS_REDIRECT, 1, 0, "-", "-");
 				return 0;
 			}
 
@@ -148,6 +149,7 @@ int handle_request(SSL *ssl) {
 					reslen = read_file(defdocpath, resbuf);
 				} else {
 					write_gemini_response(ssl, STATUS_PERMFAIL, 1, "I/O Error", 9, "", 0);
+					log_access(access_log, reqbuf, host, path, STATUS_PERMFAIL, 1, 0, "-", "-");
 				}
 			} else {
 				/* No default document, list directory */
@@ -164,9 +166,11 @@ int handle_request(SSL *ssl) {
 		}
 		if(reslen < 1) {
 			write_gemini_response(ssl, STATUS_PERMFAIL, 1, "I/O Error", 9, "", 0);
+			log_access(access_log, reqbuf, host, path, STATUS_PERMFAIL, 1, 0, "-", "-");
 			return -1;
 		}
 		write_gemini_response(ssl, STATUS_SUCCESS, 0, mime, mimelen, resbuf, reslen);
+		log_access(access_log, reqbuf, host, path, STATUS_SUCCESS, 0, reslen, "-", "-");
 		free(resbuf);
 	} else {
 		/* Local path is not readable. Currently, this simply means, that the file
@@ -174,6 +178,7 @@ int handle_request(SSL *ssl) {
 		 * this could mean more than that.
 		 */
 		write_gemini_response(ssl, STATUS_TEMPFAIL, 1, "File not found", 14, "", 0);
+		log_access(access_log, reqbuf, host, path, STATUS_TEMPFAIL, 1, 0, "-", "-");
 	}
 
 	return 1;

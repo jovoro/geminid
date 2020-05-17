@@ -30,8 +30,10 @@
 CC=/usr/bin/cc
 CFLAGS=-lmagic -lssl -lcrypto
 DEBUGFLAGS=-g -DGEMINID_DEBUG
-TLSFLAGS= # Use -DTLS_USE_V1_2_METHOD for older versions of OpenSSL
-OBJ=main.o tls.o gemini.o util.o mime.o file.o
+TLSFLAGS= # Use -DTLS_USE_V1_2_METHOD for older versions of OpenSSL, you can use Makefile.local for that
+OBJ=main.o tls.o gemini.o util.o mime.o file.o log.o
+
+-include Makefile.local
 
 geminid: $(OBJ)
 	$(CC) -o geminid $(DEBUGLAGS) $(CFLAGS) $(OBJ)
@@ -53,6 +55,9 @@ mime.o: mime.c
 
 file.o: file.c
 	$(CC) $(DEBUGFLAGS) -c file.c
+
+log.o: log.c
+	$(CC) $(DEBUGFLAGS) -c log.c
 
 cert:
 	openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes # nodes: No DES, do not prompt for pass
