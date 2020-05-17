@@ -125,8 +125,8 @@ int handle_request(SSL *ssl, FILE *access_log, FILE *error_log) {
 		/* Local path is readable; Find out, if file or directory */
 		/* FIXME: What happens if it is neither of both..? Hm... */
 		if((i = stat(localpath, &statbuf)) != 0) {
-			write_gemini_response(ssl, STATUS_PERMFAIL, 1, "I/O Error", 9, "", 0);
-			log_access(access_log, reqbuf, host, path, STATUS_PERMFAIL, 1, 0, "-", "-");
+			write_gemini_response(ssl, STATUS_TEMPFAIL, 1, "I/O Error", 9, "", 0);
+			log_access(access_log, reqbuf, host, path, STATUS_TEMPFAIL, 1, 0, "-", "-");
 			return -1;
 		}
 		if(S_ISDIR(statbuf.st_mode)) {
@@ -148,8 +148,8 @@ int handle_request(SSL *ssl, FILE *access_log, FILE *error_log) {
 					mimelen = read_file_meta(defdocpath, mime);
 					reslen = read_file(defdocpath, resbuf);
 				} else {
-					write_gemini_response(ssl, STATUS_PERMFAIL, 1, "I/O Error", 9, "", 0);
-					log_access(access_log, reqbuf, host, path, STATUS_PERMFAIL, 1, 0, "-", "-");
+					write_gemini_response(ssl, STATUS_TEMPFAIL, 1, "I/O Error", 9, "", 0);
+					log_access(access_log, reqbuf, host, path, STATUS_TEMPFAIL, 1, 0, "-", "-");
 				}
 			} else {
 				/* No default document, list directory */
@@ -165,8 +165,8 @@ int handle_request(SSL *ssl, FILE *access_log, FILE *error_log) {
 			reslen = read_file(localpath, resbuf);
 		}
 		if(reslen < 1) {
-			write_gemini_response(ssl, STATUS_PERMFAIL, 1, "I/O Error", 9, "", 0);
-			log_access(access_log, reqbuf, host, path, STATUS_PERMFAIL, 1, 0, "-", "-");
+			write_gemini_response(ssl, STATUS_TEMPFAIL, 1, "I/O Error", 9, "", 0);
+			log_access(access_log, reqbuf, host, path, STATUS_TEMPFAIL, 1, 0, "-", "-");
 			return -1;
 		}
 		write_gemini_response(ssl, STATUS_SUCCESS, 0, mime, mimelen, resbuf, reslen);
@@ -177,8 +177,8 @@ int handle_request(SSL *ssl, FILE *access_log, FILE *error_log) {
 		 * does not exist and we send the according response. But in the future
 		 * this could mean more than that.
 		 */
-		write_gemini_response(ssl, STATUS_TEMPFAIL, 1, "File not found", 14, "", 0);
-		log_access(access_log, reqbuf, host, path, STATUS_TEMPFAIL, 1, 0, "-", "-");
+		write_gemini_response(ssl, STATUS_PERMFAIL, 1, "File not found", 14, "", 0);
+		log_access(access_log, reqbuf, host, path, STATUS_PERMFAIL, 1, 0, "-", "-");
 	}
 
 	return 1;
