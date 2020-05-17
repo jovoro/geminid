@@ -14,8 +14,10 @@ Edit Makefile and gemini.h to your needs, do `make geminid`
 
 ## Running
 Just run the produced executable geminid. Some options are now configurable via command line parameters:
+- `-a <path>`: Path to the access log file. Default: stderr
 - `-c <path>`: Path to the SSL public key. Default: cert.pem
 - `-d <file>`: Filename of the default document, which is loaded when a directory is requested. Default: index.gmi
+- `-e <path>`: Path to the error log file. Default: stderr
 - `-l <port>`: Use different listen port than 1965.
 - `-p <path>`: Path to the SSL private key. Default: key.pem
 - `-r <path>`: Path of the document root directory. Default is `docroot` (local to the process)
