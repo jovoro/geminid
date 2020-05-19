@@ -1,13 +1,12 @@
 #include <stdio.h>
 #include <string.h>
-#ifdef __linux__
 #include <stdlib.h>
-#else
+#ifndef __linux__
 #include <sys/malloc.h>
-#endif /* __linux__ */
+#endif /* ! __linux__ */
 #include "url.h"
 
-main(int argc, char **argv) {
+int main(int argc, char **argv) {
 	URL *test;
 
 	if(argc < 2) {
@@ -27,6 +26,7 @@ main(int argc, char **argv) {
 	printf("fragment: %s\n", test->fragment);
 
 	free(test);
+	exit(EXIT_SUCCESS);
 }
 
 
