@@ -28,15 +28,19 @@
 # 
 
 CC=/usr/bin/cc
+LEX=/usr/bin/lex
 CFLAGS=-lmagic -lssl -lcrypto
 DEBUGFLAGS=-g -DGEMINID_DEBUG
 TLSFLAGS= # Use -DTLS_USE_V1_2_METHOD for older versions of OpenSSL, you can use Makefile.local for that
-OBJ=main.o tls.o gemini.o util.o mime.o file.o log.o
+OBJ=main.o tls.o gemini.o util.o mime.o file.o log.o url.o lexurl.o
 
 -include Makefile.local
 
 geminid: $(OBJ)
 	$(CC) -o geminid $(DEBUGLAGS) $(CFLAGS) $(OBJ)
+
+parseurl: parseurl.c url.o lexurl.o
+	$(CC) -o parseurl $(DEBUGFLAGS) url.o lexurl.o parseurl.c
 
 main.o: main.c
 	$(CC) $(DEBUGFLAGS) -c main.c
@@ -59,11 +63,20 @@ file.o: file.c
 log.o: log.c
 	$(CC) $(DEBUGFLAGS) -c log.c
 
+url.o: url.c
+	$(CC) $(DEBUGFLAGS) -c url.c
+
+lexurl.o: lexurl.c
+	$(CC) $(DEBUGFLAGS) -c lexurl.c
+
+lexurl.c: lexurl.l
+	$(LEX) -o lexurl.c lexurl.l
+
 cert:
 	openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes # nodes: No DES, do not prompt for pass
 
 clean:
-	rm -f *.o *.core geminid
+	rm -f *.o *.core lexurl.c geminid parseurl
 
 veryclean: clean
 	rm -f *.pem *.key *.mgc

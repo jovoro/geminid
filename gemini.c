@@ -48,6 +48,7 @@
 #include "mime.h"
 #include "file.h"
 #include "log.h"
+#include "url.h"
 
 int read_request(SSL *ssl, char *buffer) {
 	return SSL_read(ssl, buffer, MAXREQSIZ);
@@ -64,35 +65,20 @@ int write_gemini_response(SSL *ssl, int status_major, int status_minor, char *me
 	return 1;
 }
 
-int parse_request(char *buffer, int reqlen, char *host, char *path) {
-	/*
-	 * This is very basic, we incorporate a more sophisticated URL parser later.
-	 * Also: Is maximum request of 1024 bytes considered with or without scheme?
-	 */
-
-	char *scheme = "gemini://";
-	char *tmpbuf;
-	int len;
+int parse_request(char *buffer, int reqlen, URL *urlp) {
 	int i;
-
+	
 	*(buffer+reqlen) = '\0';
 	trim(buffer);
-	len = strlen(buffer);
+	i = lexurl(urlp, buffer);
 
-	if(strncmp(buffer, scheme, strlen(scheme)) != 0) {
-		/* request has apparently no scheme, assume gemini:// */
-		tmpbuf = malloc(MAXBUF);
-		memset(tmpbuf, 0, MAXBUF);
-		strncat(tmpbuf, scheme, 9);
-		strncat(tmpbuf, buffer, len);
-		tmpbuf[len+10] = '\0';
-		strncpy(buffer, tmpbuf, len+10);
-		free(tmpbuf);
+	if(i < 0) {
+		fprintf(stderr, "Error: Failed to parse URL: %s\n", buffer);
+		return -1;
 	}
 
-	sscanf(buffer, "gemini://%99[^/]/%99[^\n]", host, path);
-	if(strlen(path) < 1)
-		strncpy(path, "/", 1);
+	if(strncmp(urlp->scheme, "", MAX_URL_SCHEME) == 0)
+		strncpy(urlp->scheme, "gemini://", MAX_URL_SCHEME);
 
 	return 1;
 }
@@ -102,6 +88,7 @@ int handle_request(SSL *ssl, FILE *access_log, FILE *error_log) {
 	int reslen = 0;
 	int mimelen = 0;
 	int i;
+	char tmpbuf[MAXBUF];
 	char reqbuf[MAXBUF];
 	char *resbuf;
 	char host[MAXBUF];
@@ -111,6 +98,7 @@ int handle_request(SSL *ssl, FILE *access_log, FILE *error_log) {
 	char mime[MAXBUF];
 	struct stat statbuf;
 	struct stat defdocstatbuf;
+	URL requrl;
 
 	memset(reqbuf, 0, MAXBUF);
 	memset(host, 0, MAXBUF);
@@ -118,7 +106,26 @@ int handle_request(SSL *ssl, FILE *access_log, FILE *error_log) {
 	memset(localpath, 0, MAXBUF);
 
 	reqlen = read_request(ssl, reqbuf);
-	i = parse_request(reqbuf, reqlen, host, path);
+	i = parse_request(reqbuf, reqlen, &requrl);
+	
+	if(i < 0) {
+		write_gemini_response(ssl, STATUS_TEMPFAIL, 1, "Parsing Error", 9, "", 0);
+		log_access(access_log, reqbuf, "", "", STATUS_TEMPFAIL, 1, 0, "-", "-");
+		snprintf(tmpbuf, MAXBUF, "Error: Could not handle request for %s\n", reqbuf);
+		log_error(error_log, tmpbuf);
+		return -1;
+	}
+
+	i = build_request_string(reqbuf, MAXBUF, &requrl);
+	if(i < 0) { 
+		write_gemini_response(ssl, STATUS_TEMPFAIL, 1, "Processing Error", 9, "", 0);
+		log_access(access_log, reqbuf, "", "", STATUS_TEMPFAIL, 1, 0, "-", "-");
+		snprintf(tmpbuf, MAXBUF, "Error: Could not handle request for %s\n", reqbuf);
+		log_error(error_log, tmpbuf);
+		return -1;
+	}
+	strncpy(host, requrl.host, MAXBUF);
+	strncpy(path, requrl.path, MAXBUF);
 	snprintf(localpath, MAXBUF, "%s/%s", document_root, path);
 
 	if(access(localpath, R_OK) != -1) {
