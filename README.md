@@ -27,7 +27,7 @@ EOF
 to let the preprocessor and linker know where to look for libraries, i.e. libconfig.
 
 ## Configuring
-There's an example configuration file named `example.conf` in this repo. The docroot directive is relative to the serverroot. Log files are relative to `logdir`. Certificates are absolute or relative to the cwd of the geminid process, since they tend to live anywhere on the filesystem. I don't know if that makes sense to you. If it doesn't, let me know - I'd love to hear your thoughts.
+There's an example configuration file named `example.conf` in this repo. The `docroot` directive is relative to the `serverroot`. Log files are relative to `logdir`. Certificates are absolute or relative to the cwd of the geminid process, since they tend to live anywhere on the filesystem. I don't know if that makes sense to you. If it doesn't, let me know - I'd love to hear your thoughts.
 
 ## Running
 Just run the produced executable geminid. Some options are now configurable via command line parameters:
