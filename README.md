@@ -15,11 +15,26 @@ A Unix-like or POSIX-compliant OS is required. OpenSSL 1.1.1 is recommended. If 
 I've added a more sophisticated URL parser which is based on lex/flex, so you need that, too. As of 2020-05-20 there is a new configuration file introduced which requires libconfig as a dependency.
 
 ## Building
-Edit Makefile and gemini.h to your needs, do `make geminid`. You can include local modifications in Makefile.local, which will be included if it exists. There is a test program for the URL parser, which can be built with `make parseurl`
+Edit Makefile and gemini.h to your needs, do `make geminid`. There is a test program for the URL parser, which can be built with `make parseurl`. If you have non-standard include or library paths, you can use `INCDIRS` and `LIBDIRS`, respectively. You are advised to include local modifications in a separate file Makefile.local, which will be included if it exists.
+
+So, if you are on BSD, you might want to do
+```
+cat > Makefile.local <<EOF
+INCDIRS=-L/usr/local/include
+LIBDIRS=-L/usr/local/lib
+EOF
+```
+to let tpe preprocessor and linker know where to look for libraries, i.e. libconfig.
+
+## Configuring
+There's an example configuration file in this repo. The documentroot directive is relative to the serverroot. Log files are relative to `logdir`. Certificates are absolute or relative to the cwd of the geminid process, since they tend to live anywhere on the filesystem. I don't know if that makes sense to you. If it doesn't, let me know - I'd love to hear your thoughts.
 
 ## Running
 Just run the produced executable geminid. Some options are now configurable via command line parameters:
 - `-c <config>`: Path to the configuration file
 - `-t`: Test and print configuration
 
-You can find a demonstration of it running at gemini://gemini.uxq.ch/
+## Complaining
+To vent your anger, you may reach me at jr at vrtz dot ch.
+
+You can find a demonstration of it running at gemini://gemini.uxq.ch/ and some more information on how I run it at gemini://gemini.uxq.ch/running.gmi
