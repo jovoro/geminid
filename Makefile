@@ -34,47 +34,48 @@ DEBUGFLAGS=-g -DGEMINID_DEBUG
 TLSFLAGS= # Use -DTLS_USE_V1_2_METHOD for older versions of OpenSSL, you can use Makefile.local for that
 OBJ=main.o tls.o gemini.o util.o mime.o file.o log.o url.o lexurl.o config.o
 INCDIRS=
+LIBDIRS=
 
 -include Makefile.local
 
 geminid: $(OBJ)
-	$(CC) -o geminid $(DEBUGFLAGS) $(CFLAGS) $(OBJ)
+	$(CC) $(LIBDIRS) $(DEBUGFLAGS) -o geminid $(CFLAGS) $(OBJ)
 
 parseurl: parseurl.c url.o lexurl.o
-	$(CC) -o parseurl $(DEBUGFLAGS) url.o lexurl.o parseurl.c
+	$(CC) $(LIBDIRS) $(DEBUGFLAGS) -o parseurl url.o lexurl.o parseurl.c
 
 main.o: main.c
-	$(CC) $(DEBUGFLAGS) $(INCDIRS) -c main.c
+	$(CC) $(INCDIRS) $(DEBUGFLAGS) -c main.c
 
 tls.o: tls.c
-	$(CC) $(DEBUGFLAGS) $(TLSFLAGS) $(INCDIRS) -c tls.c
+	$(CC) $(INCDIRS) $(DEBUGFLAGS) $(TLSFLAGS) -c tls.c
 
 gemini.o: gemini.c
-	$(CC) $(DEBUGFLAGS) $(INCDIRS) -c gemini.c
+	$(CC) $(INCDIRS) $(DEBUGFLAGS) -c gemini.c
 
 util.o: util.c
-	$(CC) $(DEBUGFLAGS) $(INCDIRS) -c util.c
+	$(CC) $(INCDIRS) $(DEBUGFLAGS) -c util.c
 
 mime.o: mime.c
-	$(CC) $(DEBUGFLAGS) $(INCDIRS) -c mime.c
+	$(CC) $(INCDIRS) $(DEBUGFLAGS) -c mime.c
 
 file.o: file.c
-	$(CC) $(DEBUGFLAGS) $(INCDIRS) -c file.c
+	$(CC) $(INCDIRS) $(DEBUGFLAGS) -c file.c
 
 log.o: log.c
-	$(CC) $(DEBUGFLAGS) $(INCDIRS) -c log.c
+	$(CC) $(INCDIRS) $(DEBUGFLAGS) -c log.c
 
 url.o: url.c
-	$(CC) $(DEBUGFLAGS) $(INCDIRS) -c url.c
+	$(CC) $(INCDIRS) $(DEBUGFLAGS) -c url.c
 
 lexurl.o: lexurl.c
-	$(CC) $(DEBUGFLAGS) $(INCDIRS) -c lexurl.c
+	$(CC) $(INCDIRS) $(DEBUGFLAGS) -c lexurl.c
 
 lexurl.c: lexurl.l
 	$(LEX) -o lexurl.c lexurl.l
 
 config.o: config.c
-	$(CC) $(DEBUGFLAGS) $(INCDIRS) -c config.c
+	$(CC) $(INCDIRS) $(DEBUGFLAGS) -c config.c
 
 cert:
 	openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes # nodes: No DES, do not prompt for pass
