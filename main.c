@@ -38,15 +38,20 @@
 #include <arpa/inet.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <libconfig.h>
 #include "tls.h"
 #include "gemini.h"
 #include "log.h"
+#include "config.h"
 
 int listen_port;
+char server_root[MAXBUF];
 char document_root[MAXBUF];
 char default_document[MAXBUF];
 char ssl_private_path[MAXBUF];
 char ssl_public_path[MAXBUF];
+char log_time_format[MAXBUF];
+short log_local_time;
 static volatile int keepRunning = 1;
 
 void initWorker(int client, SSL_CTX *ctx, FILE *access_log, FILE *error_log) {
@@ -68,13 +73,9 @@ void initWorker(int client, SSL_CTX *ctx, FILE *access_log, FILE *error_log) {
 }
 
 void usage(char *progname) {
-	fprintf(stderr, "Usage: %s [-a path] [-c path] [-e path]  [-d document] [-p port] [-r directory]\n\n", progname);
-	fprintf(stderr, "\t-a path\n\t\tPath to the access log file\n\n");
-	fprintf(stderr, "\t-c path\n\t\tPath to the SSL public key\n\n");
-	fprintf(stderr, "\t-e path\n\t\tPath to the error log file\n\n");
-	fprintf(stderr, "\t-d document\n\t\tName of the default document\n\n");
-	fprintf(stderr, "\t-p port\n\t\tTCP port to listen on\n\n");
-	fprintf(stderr, "\t-r directory\n\t\tDocument root directory\n\n");
+	fprintf(stderr, "Usage: %s -c config [-t]\n\n", progname);
+	fprintf(stderr, "\t-c config\n\t\tPath to configuration file\n\n");
+	fprintf(stderr, "\t-t\n\t\tTest and print configuration\n\n");
 	exit(EXIT_FAILURE);
 }
 
@@ -92,82 +93,93 @@ int main(int argc, char **argv)
 	uint len;
 	struct sockaddr_in addr;
 	SSL_CTX *ctx;
-	char access_log_path[MAXBUF];
-	char error_log_path[MAXBUF];
 	char tmpbuf[MAXBUF];
+	char configpath[MAXBUF];
+	char accesslog_path[MAXBUF];
+	char errorlog_path[MAXBUF];
 	FILE *access_log;
 	FILE *error_log;
+	GLOBALCONF *global;
+	VHOSTLIST *vhostlist;
+	config_t cfg;
+	unsigned int i;
 
-	listen_port = LISTEN_PORT;
-	strncpy(default_document, DEFAULT_DOCUMENT, MAXBUF);
-	strncpy(document_root, DOCUMENT_ROOT, MAXBUF);
-	strncpy(ssl_public_path, "cert.pem", MAXBUF);
-	strncpy(ssl_private_path, "key.pem", MAXBUF);
-	strncpy(access_log_path, "-", MAXBUF);
-	strncpy(error_log_path, "-", MAXBUF);
-
-	while((opt = getopt(argc, argv, "a:c:e:d:l:p:r:")) != -1) {
+	while((opt = getopt(argc, argv, "c:t")) != -1) {
 		switch(opt) {
-			case 'a':
-				if(strlen(optarg) < 1)
-					usage(argv[0]);
-
-				strncpy(access_log_path, optarg, MAXBUF);
-				break;
-
 			case 'c':
 				if(strlen(optarg) < 1)
 					usage(argv[0]);
 
-				strncpy(ssl_public_path, optarg, MAXBUF);
+				snprintf(configpath, MAXBUF, "%s", optarg);
 				break;
-				
-			case 'e':
-				if(strlen(optarg) < 1)
+
+			case 't':
+				if(strncmp(configpath, "", MAXBUF) == 0)
 					usage(argv[0]);
 
-				strncpy(error_log_path, optarg, MAXBUF);
-				break;
-
-			case 'd':
-				if(strlen(optarg) < 1)
-					usage(argv[0]);
-
-				strncpy(default_document, optarg, MAXBUF);
-				break;
-
-			case 'l':
-				if(strlen(optarg) < 1)
-					usage(argv[0]);
-
-				sscanf(optarg, "%d", &listen_port);
-				break;
-
-			case 'p':
-				if(strlen(optarg) < 1)
-					usage(argv[0]);
-
-				strncpy(ssl_private_path, optarg, MAXBUF);
-				break;
-
-			case 'r':
-				if(strlen(optarg) < 1)
-					usage(argv[0]);
-
-				strncpy(document_root, optarg, MAXBUF);
-				break;
+				testprintconfig(configpath);
+				exit(EXIT_SUCCESS);
 
 			default:
 				usage(argv[0]);
 		}
 	}
 
+	if(strncmp(configpath, "", MAXBUF) == 0)
+		usage(argv[0]);
+
 /*	signal(SIGINT, intHandler); */
 
-	fprintf(stderr, "access_log_path: %s\nerror_log_path: %s\ndefault_document: %s\nlisten_port: %d\ndocument_root: %s\npublic key: %s\nprivate key: %s\n\n\n", access_log_path, error_log_path, default_document, listen_port, document_root, ssl_public_path, ssl_private_path);
+	/* Prepare configuration;
+	 * We currently only honor the first vhost, since we haven't implemented
+	 * SNI yet.
+	 */
+	if(init_geminid_config(configpath, &cfg, &global, &vhostlist) < 1) {
+		config_destroy(&cfg);
+		fprintf(stderr, "Cannot parse config.\n");
+		exit(EXIT_FAILURE);
+	}
 
-	access_log = open_log(access_log_path);
-	error_log = open_log(error_log_path);
+	if(global == NULL || global == NULL) {
+		config_destroy(&cfg);
+		fprintf(stderr, "Cannot parse config.\n");
+		exit(EXIT_FAILURE);
+	}
+
+	if(vhostlist->count < 1) {
+		config_destroy(&cfg);
+		fprintf(stderr, "No vhosts defined.\n");
+		exit(EXIT_FAILURE);
+	}
+
+	if(vhostlist->count > 1) {
+		fprintf(stderr, "Please note that currently only the first vhost entry will be honored, since we haven't implemented SNI yet.\n");
+	}
+
+	/* Copy configuration to global variables;
+	 * This is hopefully not necessary in the future
+	 * as we will pass the configuration to each vhost and
+	 * worker eventually
+	 */
+	strncpy(server_root, global->serverroot, MAXBUF-1);
+	strncpy(ssl_public_path, vhostlist->vhost->cert, MAXBUF-1);
+	strncpy(ssl_private_path, vhostlist->vhost->key, MAXBUF-1);
+	strncpy(default_document, vhostlist->vhost->index, MAXBUF-1);
+	snprintf(document_root, MAXBUF-1, "%s/%s", server_root, vhostlist->vhost->docroot);
+	snprintf(accesslog_path, MAXBUF-1, "%s/%s", global->logdir, vhostlist->vhost->accesslog);
+	snprintf(errorlog_path, MAXBUF-1, "%s/%s", global->logdir, vhostlist->vhost->errorlog);
+	listen_port = global->port;
+	snprintf(log_time_format, MAXBUF-1, "%s", global->logtimeformat);
+	if(strncmp(global->loglocaltime, "yes", 3) == 0)
+		log_local_time = 1;
+	else
+		log_local_time = 0;
+
+	/* Print configuration settings */
+	fprintf(stderr, "serverroot: %s\nlogdir: %s\nhostname: %s\naccess_log_path: %s\nerror_log_path: %s\ndefault_document: %s\nlisten_port: %d\ndocument_root: %s\npublic key: %s\nprivate key: %s\n\n\n", server_root, global->logdir, vhostlist->vhost->name, vhostlist->vhost->accesslog, vhostlist->vhost->errorlog, default_document, global->port, vhostlist->vhost->docroot, vhostlist->vhost->cert, vhostlist->vhost->key);
+
+	access_log = open_log(accesslog_path);
+	error_log = open_log(errorlog_path);
 
 	if(access_log == NULL) {
 		fprintf(stderr, "Cannot open access log\n");
@@ -212,5 +224,9 @@ int main(int argc, char **argv)
 	cleanup_openssl();
 	close_log(access_log);
 	close_log(error_log);
+	
+	free(global);
+	free(vhostlist);
+	config_destroy(&cfg);
 }
 

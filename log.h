@@ -29,5 +29,6 @@
 
 int log_access(FILE *lf, char *reqbuf, char *host, char *path, int status_major, int status_minor, long bytes, char *cc_issuer, char *cc_subject);
 int log_error(FILE *lf, char *logbuf);
-FILE *open_log(char *path);
+FILE *open_log(const char *path);
 int close_log(FILE *lf);
+

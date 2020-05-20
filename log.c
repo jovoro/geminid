@@ -39,8 +39,12 @@ int log_access(FILE *lf, char *reqbuf, char *host, char *path, int status_major,
 	time_t now;
 
 	now = time(0);
-	sTm = gmtime (&now);
-	strftime(timebuf, sizeof(timebuf), "%Y-%m-%dT%H:%M:%S%z", sTm);
+	if(log_local_time < 1)
+		sTm = gmtime(&now);
+	else
+		sTm = localtime(&now);
+
+	strftime(timebuf, sizeof(timebuf), log_time_format, sTm);
 	return fprintf(lf, "%s %s %s %s %d%d %ld %s %s\n", timebuf, reqbuf, host, path, status_major, status_minor, bytes, cc_issuer, cc_subject);
 }
 
@@ -49,13 +53,16 @@ int log_error(FILE *lf, char *logbuf) {
 	struct tm *sTm;
 	time_t now;
 
-	now = time(0);
-	sTm = gmtime (&now);
-	strftime(timebuf, sizeof(timebuf), "%Y-%m-%dT%H:%M:%S%z", sTm);
+	if(log_local_time < 1)
+		sTm = gmtime(&now);
+	else
+		sTm = localtime(&now);
+
+	strftime(timebuf, sizeof(timebuf), log_time_format, sTm);
 	return fprintf(lf, "%s %s\n", timebuf, logbuf);
 }
 
-FILE *open_log(char *path) {
+FILE *open_log(const char *path) {
 	FILE *lf;
 
 	if(strncmp(path, "-", 1) == 0) 
