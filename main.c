@@ -196,6 +196,12 @@ int main(int argc, char **argv)
 	configure_context(ctx);
 	sock = create_socket(listen_port);
 	setsockopt(sock,SOL_SOCKET,SO_REUSEADDR,&true,sizeof(int));
+
+	/* Auto-reap zombies for now.
+	 * Maybe refine that with a real signal handler later 
+	 * to get exit codes from children.
+	 */
+	signal(SIGCHLD, SIG_IGN);
 	
 	while(keepRunning) {
 		len = sizeof(addr);
@@ -206,13 +212,14 @@ int main(int argc, char **argv)
 		}
 		if((pid = fork()) == 0) {
 			// Child
+			close(sock);
 			initWorker(client, ctx, access_log, error_log);
 			exit(0);
 		} else if (pid > 0) {
 			// Parent
+			close(client);
 			snprintf(tmpbuf, MAXBUF, "Started child process %d", pid);
 			log_error(error_log, tmpbuf);
-			close(client);
 		} else {
 			// Failed
 			perror("Unable to fork");
