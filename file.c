@@ -110,9 +110,9 @@ int read_directory(char *path, char *requesturl, void *buffer) {
 
 	memset(buffer, 0, MAXBUF);
 
-	strncat(buffer, "# Directory listing of /", 24);
+	strncat(buffer, "# Directory listing of ", 23);
 
-	chars_avail -= 24;
+	chars_avail -= 23;
 	strncat(buffer, path, chars_avail);
 	chars_avail -= strlen(path);
 	if(chars_avail < 1)
