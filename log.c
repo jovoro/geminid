@@ -53,6 +53,7 @@ int log_error(FILE *lf, char *logbuf) {
 	struct tm *sTm;
 	time_t now;
 
+	now = time(0);
 	if(log_local_time < 1)
 		sTm = gmtime(&now);
 	else
