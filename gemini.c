@@ -59,7 +59,7 @@ int write_gemini_response(SSL *ssl, int status_major, int status_minor, char *me
 	int headerlen = MAXSTATUSSIZ+MAXWHITESIZ+metalen;
 	header = malloc(headerlen);
 
-	snprintf(header, headerlen, "%d%d\t%s\r\n", status_major, status_minor, meta);
+	snprintf(header, headerlen, "%d%d %s\r\n", status_major, status_minor, meta);
 	SSL_write(ssl, header, strlen(header));
 	SSL_write(ssl, buffer, buflen);
 	return 1;
