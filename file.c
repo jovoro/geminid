@@ -67,7 +67,7 @@ int read_file_meta(char *path, char *buffer) {
 
 		magic_close(magic);
 	} else {
-		strncpy(buffer, "text/gemini", 11);
+		strncpy(buffer, "text/gemini", 12);
 	}
 	return strlen(buffer);
 }
