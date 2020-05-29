@@ -106,8 +106,6 @@ int main(int argc, char **argv)
 	char configpath[MAXBUF];
 	char accesslog_path[MAXBUF];
 	char errorlog_path[MAXBUF];
-	FILE *access_log;
-	FILE *error_log;
 	GLOBALCONF *global;
 	VHOSTLIST *vhostlist;
 	VHOSTCONF *vhcp;
@@ -186,7 +184,9 @@ int main(int argc, char **argv)
 	vhcp = vhostlist->vhost;
 	vhp = vhost;
 	for(i=0; i < vhostcount; i++) {
-		tempvhp = create_vhost(vhcp->name, vhcp->docroot, vhcp->index, vhcp->accesslog, vhcp->errorlog, vhcp->cert, vhcp->key);
+		snprintf(accesslog_path, MAXBUF-1, "%s/%s", global->logdir, vhcp->accesslog);
+		snprintf(errorlog_path, MAXBUF-1, "%s/%s", global->logdir, vhcp->errorlog);
+		tempvhp = create_vhost(vhcp->name, vhcp->docroot, vhcp->index, accesslog_path, errorlog_path, vhcp->cert, vhcp->key);
 		if(tempvhp == NULL) {
 			fprintf(stderr, "Error allocating vhost struct\n");
 			exit(EXIT_FAILURE);
@@ -195,7 +195,7 @@ int main(int argc, char **argv)
 		free(tempvhp);
 			
 		/* Print configuration settings */
-		fprintf(stderr, "serverroot: %s\nlogdir: %s\nhostname: %s\naccess_log_path: %s\nerror_log_path: %s\ndefault_document: %s\nlisten_port: %d\ndocument_root: %s\npublic key: %s\nprivate key: %s\n\n\n", server_root, global->logdir, vhcp->name, vhcp->accesslog, vhcp->errorlog, vhcp->index, global->port, vhcp->docroot, vhcp->cert, vhcp->key);
+		fprintf(stderr, "serverroot: %s\nlogdir: %s\nhostname: %s\naccess_log_path: %s\nerror_log_path: %s\ndefault_document: %s\nlisten_port: %d\ndocument_root: %s\npublic key: %s\nprivate key: %s\n\n\n", server_root, global->logdir, vhcp->name, accesslog_path, errorlog_path, vhcp->index, global->port, vhcp->docroot, vhcp->cert, vhcp->key);
 		vhcp++;
 		vhp++;
 	}
@@ -239,8 +239,6 @@ int main(int argc, char **argv)
 	destroy_vhost(vhost, vhostcount);	
 	close(sock);
 	cleanup_openssl();
-	close_log(access_log);
-	close_log(error_log);
 	
 	free(global);
 	free(vhostlist);
