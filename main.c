@@ -120,7 +120,7 @@ int main(int argc, char **argv)
 				if(strlen(optarg) < 1)
 					usage(argv[0]);
 
-				snprintf(configpath, MAXBUF, "%s", optarg);
+				snprintf(configpath, MAXBUF-1, "%s", optarg);
 				break;
 
 			case 't':
