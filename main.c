@@ -140,10 +140,7 @@ int main(int argc, char **argv)
 
 /*	signal(SIGINT, intHandler); */
 
-	/* Prepare configuration;
-	 * We currently only honor the first vhost, since we haven't implemented
-	 * SNI yet.
-	 */
+	/* Prepare configuration */
 	if(init_geminid_config(configpath, &cfg, &global, &vhostlist) < 1) {
 		config_destroy(&cfg);
 		fprintf(stderr, "Cannot parse config.\n");
