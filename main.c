@@ -43,28 +43,37 @@
 #include "gemini.h"
 #include "log.h"
 #include "config.h"
+#include "vhost.h"
 
 int listen_port;
 char server_root[MAXBUF];
-char document_root[MAXBUF];
-char default_document[MAXBUF];
-char ssl_private_path[MAXBUF];
-char ssl_public_path[MAXBUF];
 char log_time_format[MAXBUF];
 short log_local_time;
 static volatile int keepRunning = 1;
+VHOST *vhost;
+unsigned int vhostcount = 0;
 
-void initWorker(int client, SSL_CTX *ctx, FILE *access_log, FILE *error_log) {
+void initWorker(int client) {
+	int i;
+	char document_root[MAXBUF];
         SSL *ssl;
+	VHOST *select_vhost;
 
-        ssl = SSL_new(ctx);
+	SSL_CTX_set_tlsext_servername_callback(vhost->ctx, sni_cb);
+        ssl = SSL_new(vhost->ctx); /* Use first vhost as default context */
         SSL_set_fd(ssl, client);
 
         if (SSL_accept(ssl) <= 0) {
-            ERR_print_errors_fp(stderr);
-        }
-        else {
-		handle_request(ssl, access_log, error_log);
+		ERR_print_errors_fp(stderr);
+        } else {
+		select_vhost = get_current_vhost();
+		if(select_vhost == NULL) {
+			fprintf(stderr, "Cannot get current vhost\n");
+			return;
+		}
+		
+		snprintf(document_root, MAXBUF-1, "%s/%s", server_root, select_vhost->docroot);
+		handle_request(ssl, document_root, select_vhost->defaultdocument, select_vhost->accesslog, select_vhost->errorlog);
         }
 
         SSL_shutdown(ssl);
@@ -101,6 +110,9 @@ int main(int argc, char **argv)
 	FILE *error_log;
 	GLOBALCONF *global;
 	VHOSTLIST *vhostlist;
+	VHOSTCONF *vhcp;
+	VHOST *vhp;
+	VHOST *tempvhp;
 	config_t cfg;
 	unsigned int i;
 
@@ -152,22 +164,10 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	if(vhostlist->count > 1) {
-		fprintf(stderr, "Please note that currently only the first vhost entry will be honored, since we haven't implemented SNI yet.\n");
-	}
+	init_openssl();
 
-	/* Copy configuration to global variables;
-	 * This is hopefully not necessary in the future
-	 * as we will pass the configuration to each vhost and
-	 * worker eventually
-	 */
+	/* Global configuration */
 	strncpy(server_root, global->serverroot, MAXBUF-1);
-	strncpy(ssl_public_path, vhostlist->vhost->cert, MAXBUF-1);
-	strncpy(ssl_private_path, vhostlist->vhost->key, MAXBUF-1);
-	strncpy(default_document, vhostlist->vhost->index, MAXBUF-1);
-	snprintf(document_root, MAXBUF-1, "%s/%s", server_root, vhostlist->vhost->docroot);
-	snprintf(accesslog_path, MAXBUF-1, "%s/%s", global->logdir, vhostlist->vhost->accesslog);
-	snprintf(errorlog_path, MAXBUF-1, "%s/%s", global->logdir, vhostlist->vhost->errorlog);
 	listen_port = global->port;
 	snprintf(log_time_format, MAXBUF-1, "%s", global->logtimeformat);
 	if(strncmp(global->loglocaltime, "yes", 3) == 0)
@@ -175,25 +175,37 @@ int main(int argc, char **argv)
 	else
 		log_local_time = 0;
 
-	/* Print configuration settings */
-	fprintf(stderr, "serverroot: %s\nlogdir: %s\nhostname: %s\naccess_log_path: %s\nerror_log_path: %s\ndefault_document: %s\nlisten_port: %d\ndocument_root: %s\npublic key: %s\nprivate key: %s\n\n\n", server_root, global->logdir, vhostlist->vhost->name, vhostlist->vhost->accesslog, vhostlist->vhost->errorlog, default_document, global->port, vhostlist->vhost->docroot, vhostlist->vhost->cert, vhostlist->vhost->key);
-
-	access_log = open_log(accesslog_path);
-	error_log = open_log(errorlog_path);
-
-	if(access_log == NULL) {
-		fprintf(stderr, "Cannot open access log\n");
+	/* Configuration per virtual host */
+	vhostcount = vhostlist->count;
+	vhost = calloc(vhostcount, sizeof(VHOST));
+	if(vhost == NULL) {
+		fprintf(stderr, "Error allocating vhost struct\n");
 		exit(EXIT_FAILURE);
 	}
-	
-	if(error_log == NULL) {
-		fprintf(stderr, "Cannot open error log\n");
+
+	vhcp = vhostlist->vhost;
+	vhp = vhost;
+	for(i=0; i < vhostcount; i++) {
+		tempvhp = create_vhost(vhcp->name, vhcp->docroot, vhcp->index, vhcp->accesslog, vhcp->errorlog, vhcp->cert, vhcp->key);
+		if(tempvhp == NULL) {
+			fprintf(stderr, "Error allocating vhost struct\n");
+			exit(EXIT_FAILURE);
+		}
+		*vhp = *tempvhp;
+		free(tempvhp);
+			
+		/* Print configuration settings */
+		fprintf(stderr, "serverroot: %s\nlogdir: %s\nhostname: %s\naccess_log_path: %s\nerror_log_path: %s\ndefault_document: %s\nlisten_port: %d\ndocument_root: %s\npublic key: %s\nprivate key: %s\n\n\n", server_root, global->logdir, vhcp->name, vhcp->accesslog, vhcp->errorlog, vhcp->index, global->port, vhcp->docroot, vhcp->cert, vhcp->key);
+		vhcp++;
+		vhp++;
+	}
+	i = set_current_vhost(vhost);
+	if(i < 0) {
+		fprintf(stderr, "Cannot set current (default) vhost\n");
 		exit(EXIT_FAILURE);
 	}
-	
-	init_openssl();
-	ctx = create_context();
-	configure_context(ctx);
+
+
 	sock = create_socket(listen_port);
 	setsockopt(sock,SOL_SOCKET,SO_REUSEADDR,&true,sizeof(int));
 
@@ -213,21 +225,19 @@ int main(int argc, char **argv)
 		if((pid = fork()) == 0) {
 			// Child
 			close(sock);
-			initWorker(client, ctx, access_log, error_log);
+			initWorker(client);
 			exit(0);
 		} else if (pid > 0) {
 			// Parent
 			close(client);
-			snprintf(tmpbuf, MAXBUF, "Started child process %d", pid);
-			log_error(error_log, tmpbuf);
 		} else {
 			// Failed
 			perror("Unable to fork");
 		}
 	}
-	
+
+	destroy_vhost(vhost, vhostcount);	
 	close(sock);
-	SSL_CTX_free(ctx);
 	cleanup_openssl();
 	close_log(access_log);
 	close_log(error_log);

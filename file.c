@@ -93,7 +93,7 @@ int read_file(char *path, void *buffer) {
 	return result;
 }
 
-int read_directory(char *path, char *requesturl, void *buffer) {
+int read_directory(char *path, char *document_root, char *requesturl, void *buffer) {
 	DIR *dp;
 	struct stat statbuf;
 	struct dirent *ep;

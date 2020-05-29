@@ -49,8 +49,5 @@ enum { STATUS_DUMMY, STATUS_INPUT, STATUS_SUCCESS, STATUS_REDIRECT, STATUS_TEMPF
 
 extern int listen_port;
 extern char default_document[MAXBUF];
-extern char document_root[MAXBUF];
-extern char ssl_private_path[MAXBUF];
-extern char ssl_public_path[MAXBUF];
 extern char log_time_format[MAXBUF];
 extern short log_local_time;

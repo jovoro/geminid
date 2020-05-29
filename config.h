@@ -1,5 +1,3 @@
-#define MAX_VHOST 1024
-
 typedef struct {
 	const char *serverroot;
 	const char *logdir;
