@@ -61,7 +61,7 @@ int read_file_meta(char *path, char *buffer) {
 		magicstr = magic_file(magic, path);
 	
 		if(magicstr == NULL)
-			strncpy(buffer, "text/gemini; charset=utf-8", 26);
+			strncpy(buffer, "text/gemini; charset=utf-8", 27);
 		else
 			strncpy(buffer, magicstr, MAXBUF);
 
