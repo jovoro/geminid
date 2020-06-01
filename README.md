@@ -3,12 +3,6 @@ A Gemini Server in C. Please note that this is not production-ready code.
 The current state is a result of a few hours of hacking, barely able to even
 serve content. But the goal is to have a compliant gemini server written in C.
 
-## Configuring
-
-There is no configuration file yet. Some tunable parameters are avaible in
-gemini.h. For convenience you can use `make cert` to generate a self-signed
-certificate.
-
 ## Prerequisites
 A Unix-like or POSIX-compliant OS is required. OpenSSL 1.1.1 is recommended. If you build with an earlier version, I assume it is one which at least supports TLS 1.2. You need to define `TLS_USE_V1_2_METHOD` if you want to use TLS 1.2. If you want to use even older versions, you need to modify the source code in tls.c to use the appropriate version-specific method.
 
@@ -27,9 +21,9 @@ EOF
 to let the preprocessor and linker know where to look for libraries, i.e. libconfig.
 
 ## Configuring
-There's an example configuration file named `example.conf` in this repo. The configuration is supposed to define multiple vhosts, but currently only the first is usable, because I haven't implemented SNI yet... The format of log times is described according to `strftime(3)`.
+There's an example configuration file named `example.conf` in this repo. You can define multiple virtual hosts, of which the first definition is the default vhost. The default vhost is used if no servername is defined during the TLS handshake or if no vhost definition matches the provided hostname. Each vhost needs a separate TLS certificate.
 
-The `docroot` directive is relative to the `serverroot`. Log files are relative to `logdir`. Certificates are absolute or relative to the cwd of the geminid process, since they tend to live anywhere on the filesystem. I don't know if that makes sense to you. If it doesn't, let me know - I'd love to hear your thoughts.
+The format of log times is described according to `strftime(3)`. The `docroot` directive is relative to the `serverroot`. Log files are relative to `logdir`. Certificates are absolute or relative to the cwd of the geminid process, since they tend to live anywhere on the filesystem. I don't know if that makes sense to you. If it doesn't, let me know - I'd love to hear your thoughts.
 
 ## Running
 Just run the produced executable geminid. Some options are now configurable via command line parameters:

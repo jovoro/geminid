@@ -32,7 +32,7 @@ LEX=/usr/bin/lex
 CFLAGS=-lconfig -lmagic -lssl -lcrypto 
 DEBUGFLAGS=-g -DGEMINID_DEBUG
 TLSFLAGS= # Use -DTLS_USE_V1_2_METHOD for older versions of OpenSSL, you can use Makefile.local for that
-OBJ=main.o tls.o gemini.o util.o mime.o file.o log.o url.o lexurl.o config.o
+OBJ=main.o tls.o gemini.o util.o mime.o file.o log.o url.o lexurl.o config.o vhost.o
 INCDIRS=
 LIBDIRS=
 
@@ -76,6 +76,9 @@ lexurl.c: lexurl.l
 
 config.o: config.c
 	$(CC) $(INCDIRS) $(DEBUGFLAGS) -c config.c
+
+vhost.o: vhost.c
+	$(CC) $(INCDIRS) $(DEBUGFLAGS) -c vhost.c
 
 cert:
 	openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes # nodes: No DES, do not prompt for pass

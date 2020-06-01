@@ -7,8 +7,7 @@
  * this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
- * notice, this list of conditions and the following disclaimer in the
- * documentation and/or other materials provided with the distribution.
+ * notice, this list of conditions and the following disclaimer in the * documentation and/or other materials provided with the distribution.
  *
  * 3. Neither the name of the copyright holder nor the names of its
  * contributors may be used to endorse or promote products derived
@@ -31,4 +30,6 @@ int create_socket(int port);
 void init_openssl();
 void cleanup_openssl();
 SSL_CTX *create_context();
-void configure_context(SSL_CTX *ctx);
+void configure_context(SSL_CTX *ctx, const char *cert_public_path, const char *cert_private_path);
+int sni_cb(SSL *ssl, int *ad, void *arg);
+extern unsigned int vhostcount;

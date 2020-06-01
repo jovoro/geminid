@@ -37,6 +37,9 @@
 #include <openssl/err.h>
 #include "tls.h"
 #include "gemini.h"
+#include "vhost.h"
+extern VHOST *vhost;
+extern unsigned int vhostcount;
 
 int create_socket(int port) {
 	int s;
@@ -93,15 +96,46 @@ SSL_CTX *create_context() {
 	return ctx;
 }
 
-void configure_context(SSL_CTX *ctx) {
-    SSL_CTX_set_ecdh_auto(ctx, 1);
+int sni_cb(SSL *ssl, int *ad, void *arg) {
+	const char *servername;
+	unsigned int i;
+	int vr;
+	SSL_CTX *r;
 
-	if (SSL_CTX_use_certificate_file(ctx, ssl_public_path, SSL_FILETYPE_PEM) <= 0) {
+	if(ssl == NULL)
+		return SSL_TLSEXT_ERR_NOACK;
+
+	servername = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name);
+	
+	if (!servername || servername[0] == '\0')
+		return SSL_TLSEXT_ERR_NOACK;
+
+	for(i=0; i < vhostcount; i++) {
+		if(strcmp((vhost+i)->hostname, servername) == 0) {
+			r = SSL_set_SSL_CTX(ssl, (vhost+i)->ctx);
+			if(r == NULL)
+				SSL_TLSEXT_ERR_NOACK;
+
+			vr = set_current_vhost((vhost+i));
+			if(vr != 0)
+				SSL_TLSEXT_ERR_NOACK;
+
+			return SSL_TLSEXT_ERR_OK;
+		}
+	}
+
+	return SSL_TLSEXT_ERR_NOACK;
+}
+
+void configure_context(SSL_CTX *ctx, const char *cert_public_path, const char *cert_private_path) {
+	SSL_CTX_set_ecdh_auto(ctx, 1);
+
+	if (SSL_CTX_use_certificate_file(ctx, cert_public_path, SSL_FILETYPE_PEM) <= 0) {
 		ERR_print_errors_fp(stderr);
 		exit(EXIT_FAILURE);
 	}
 
-	if (SSL_CTX_use_PrivateKey_file(ctx, ssl_private_path, SSL_FILETYPE_PEM) <= 0 ) {
+	if (SSL_CTX_use_PrivateKey_file(ctx, cert_private_path, SSL_FILETYPE_PEM) <= 0 ) {
 		ERR_print_errors_fp(stderr);
 		exit(EXIT_FAILURE);
 	}

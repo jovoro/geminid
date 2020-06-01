@@ -83,7 +83,7 @@ int parse_request(char *buffer, int reqlen, URL *urlp) {
 	return 1;
 }
 
-int handle_request(SSL *ssl, FILE *access_log, FILE *error_log) {
+int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *access_log, FILE *error_log) {
 	int reqlen = 0;
 	int reslen = 0;
 	int mimelen = 0;
@@ -161,9 +161,9 @@ int handle_request(SSL *ssl, FILE *access_log, FILE *error_log) {
 			} else {
 				/* No default document, list directory */
 				resbuf = malloc(MAXBUF);
-				strncpy(mime, "text/gemini", 11);
-				mimelen = 11;
-				reslen = read_directory(path, reqbuf, resbuf); /* document_root will be prepended again */
+				strncpy(mime, "text/gemini", 12);
+				mimelen = 12;
+				reslen = read_directory(path, document_root, reqbuf, resbuf); /* document_root will be prepended again */
 			}
 		} else {
 			/* path is file, maybe... */
