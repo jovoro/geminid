@@ -14,7 +14,7 @@ Edit Makefile and gemini.h to your needs, do `make geminid`. There is a test pro
 So, if you are on BSD, you might want to do
 ```
 cat > Makefile.local <<EOF
-INCDIRS=-L/usr/local/include
+INCDIRS=-I/usr/local/include
 LIBDIRS=-L/usr/local/lib
 EOF
 ```
