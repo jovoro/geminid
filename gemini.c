@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <limits.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -99,7 +100,7 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 	char tmpbuf[MAXBUF];
 	char reqbuf[MAXBUF];
 	char *resbuf;
-	char *dirbuf;
+	char *pathbuf;
 	char host[MAXBUF];
 	char path[MAXBUF];
 	char defdocpath[MAXBUF];
@@ -136,6 +137,13 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 	strncpy(host, requrl.host, MAXBUF);
 	strncpy(path, requrl.path, MAXBUF);
 	snprintf(localpath, MAXBUF, "%s/%s", document_root, path);
+	pathbuf = realpath(localpath, NULL);
+	if(strncmp(document_root, pathbuf, strlen(document_root)) != 0) {
+		memcpy(localpath, document_root, strlen(document_root)+1);
+		localpath[strlen(document_root)+1] = 0;
+		strcat(localpath, "/");
+	}
+	free(pathbuf);
 
 	if(access(localpath, R_OK) != -1) {
 		/* Local path is readable; Find out, if file or directory */

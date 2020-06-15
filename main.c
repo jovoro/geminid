@@ -92,8 +92,7 @@ void intHandler(int signal) {
 	keepRunning = 0;
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
 	int sock;
 	int pid;
 	int client;
