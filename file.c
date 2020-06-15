@@ -32,9 +32,11 @@
 #include <string.h>
 #include <magic.h>
 #include <dirent.h>
+#include <stdlib.h>
 #include <sys/stat.h>
 #include "gemini.h"
 #include "file.h"
+#include "url.h"
 
 int read_file_meta(char *path, char *buffer) {
 	int i;
@@ -93,14 +95,19 @@ int read_file(char *path, void *buffer) {
 	return result;
 }
 
-int read_directory(char *path, char *document_root, char *requesturl, void *buffer) {
+int read_directory(char *path, char *document_root, char *requesturl, char **buffer) {
 	DIR *dp;
 	struct stat statbuf;
 	struct dirent *ep;
-	int chars_avail = MAXBUF-1;
 	int i;
+	int outsiz;
+	int linelen;
 	char localpath[MAXBUF];
 	char tmpbuf[MAXBUF];
+	char urlbuf[MAXBUF];
+	char *table;
+	void *np;
+	char *bufloc;
 
 	snprintf(localpath, MAXBUF, "%s/%s", document_root, path);
 
@@ -108,52 +115,59 @@ int read_directory(char *path, char *document_root, char *requesturl, void *buff
 	if(dp == NULL)
 		return -1;
 
-	memset(buffer, 0, MAXBUF);
 
-	strncat(buffer, "# Directory listing of ", 23);
-
-	chars_avail -= 23;
-	strncat(buffer, path, chars_avail);
-	chars_avail -= strlen(path);
-	if(chars_avail < 1)
+	outsiz = 26 + strlen(path);
+	*buffer = calloc(outsiz, 1);
+	if(!*buffer)
 		return -1;
-	
-	strncat(buffer, "\r\n", 2);
-	chars_avail -= 2;	
+
+	bufloc = *buffer;
+	table = new_url_encoder_table();
+	if(!table)
+		return -1;
+
+	strncat(*buffer, "# Directory listing of ", 23);
+	strncat(*buffer, path, strlen(path));
+	strncat(*buffer, "\r\n", 2);
 
 	while ((ep = readdir(dp)) != NULL) {
 		if(strncmp(ep->d_name, ".", 1) == 0 || strncmp(ep->d_name, "..", 2) == 0)
 			continue;
 
-		if(chars_avail < 1)
-			return -1;
-
 		snprintf(tmpbuf, MAXBUF, "%s/%s", localpath, ep->d_name);
 		if((i = stat(tmpbuf, &statbuf)) == 0) {
-			strncat(buffer, "=> ", 3);
-			chars_avail -= 3;
-			strncat(buffer, requesturl, strlen(requesturl));
-			chars_avail -= strlen(requesturl);
-			strncat(buffer, ep->d_name, strlen(ep->d_name));
-			chars_avail -= strlen(ep->d_name);
+			tmpbuf[0] = 0;
+			linelen = 0;	
+			strncat(tmpbuf, requesturl, strlen(requesturl));
+			strncat(tmpbuf, ep->d_name, strlen(ep->d_name));
 			if(S_ISDIR(statbuf.st_mode)) {
-				strncat(buffer, "/", 1);
-				chars_avail -= 1;
+				strncat(tmpbuf, "/", 1);
+				linelen += 1; /* For adding slash at the end of d_name to indicate directory */
 			}
-			strncat(buffer, " ", 1);
-			chars_avail -= 1;
-			strncat(buffer, ep->d_name, strlen(ep->d_name));
-			chars_avail -= strlen(ep->d_name);
+	
+			i = url_encode(table, tmpbuf, urlbuf, 4096);
+			linelen += 3 + i + 1 + strlen(ep->d_name) + 2;
+			outsiz += linelen;
+			if(np = realloc(bufloc, outsiz)) {
+				*buffer = np;
+				bufloc = np;
+			} else {
+				free(table);
+				return -1;
+			}
+			strncat(*buffer, "=> ", 3);
+			strncat(*buffer, urlbuf, i);
+			strncat(*buffer, " ", 1);
+			strncat(*buffer, ep->d_name, strlen(ep->d_name));
 			if(S_ISDIR(statbuf.st_mode)) {
-				strncat(buffer, "/", 1);
-				chars_avail -= 1;
+				strncat(*buffer, "/", 1);
 			}
-			strncat(buffer, "\r\n", 2);
-			chars_avail -= 2;
+			strncat(*buffer, "\r\n", 2);
 		}
 	}
+	bufloc[outsiz-1] = 0;
 	closedir(dp);
+	free(table);
 
-	return MAXBUF - chars_avail - 1;
- 
+	return outsiz;
 }

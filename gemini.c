@@ -67,6 +67,7 @@ int write_gemini_response(SSL *ssl, int status_major, int status_minor, char *me
 
 int parse_request(char *buffer, int reqlen, URL *urlp) {
 	int i;
+	char tmpbuf[MAXBUF];
 	
 	*(buffer+reqlen) = '\0';
 	trim(buffer);
@@ -80,6 +81,13 @@ int parse_request(char *buffer, int reqlen, URL *urlp) {
 	if(strncmp(urlp->scheme, "", MAX_URL_SCHEME) == 0)
 		strncpy(urlp->scheme, "gemini://", MAX_URL_SCHEME);
 
+	i = url_decode(tmpbuf, urlp->path, MAXBUF);
+	if(i < 0)
+		return -1;
+
+	memcpy(urlp->path, tmpbuf, MAX_URL_PATH);
+	urlp->path[MAX_URL_PATH] = 0;
+
 	return 1;
 }
 
@@ -91,6 +99,7 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 	char tmpbuf[MAXBUF];
 	char reqbuf[MAXBUF];
 	char *resbuf;
+	char *dirbuf;
 	char host[MAXBUF];
 	char path[MAXBUF];
 	char defdocpath[MAXBUF];
@@ -157,13 +166,19 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 				} else {
 					write_gemini_response(ssl, STATUS_TEMPFAIL, 1, "I/O Error", 9, "", 0);
 					log_access(access_log, reqbuf, host, path, STATUS_TEMPFAIL, 1, 0, "-", "-");
+					return -1;
 				}
 			} else {
 				/* No default document, list directory */
-				resbuf = malloc(MAXBUF);
 				strncpy(mime, "text/gemini", 12);
 				mimelen = 12;
-				reslen = read_directory(path, document_root, reqbuf, resbuf); /* document_root will be prepended again */
+				reslen = read_directory(path, document_root, reqbuf, &resbuf); /* document_root will be prepended again */
+				reslen--; /* Dont write terminating NULL byte */
+				if(reslen < 0) {
+					write_gemini_response(ssl, STATUS_TEMPFAIL, 1, "I/O Error", 9, "", 0);
+					log_access(access_log, reqbuf, host, path, STATUS_TEMPFAIL, 1, 0, "-", "-");
+					return -1;
+				}
 			}
 		} else {
 			/* path is file, maybe... */

@@ -29,6 +29,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include "url.h"
 
 int build_request_string(char *buf, int bufsiz, URL *url) {
@@ -39,4 +40,81 @@ int build_request_string(char *buf, int bufsiz, URL *url) {
 		return -1;
 
 	return snprintf(buf, bufsiz, "%s%s%s%s%s%s%s", url->scheme, url->userinfo, url->host, url->port, url->path, url->query, url->fragment);
+}
+
+/* URL encoding function, stolen from 
+ * https://stackoverflow.com/questions/5842471/c-url-encoding
+ */
+
+char *new_url_encoder_table() {
+	int i;
+	char *table;
+
+	table = malloc(256);
+	if(!table)
+		return NULL;
+
+	for(i = 0; i < 256; i++) {
+		table[i] = isalnum(i) || i == '~' || i == '*' || i == '-' || i == '.' || i == '_' || i == '/' || i == ':' ? i : 0;
+	}
+
+	return table;
+}
+
+int url_encode(char *table, unsigned char *inbuf, char *outbuf, int outbufsiz) {
+	int outlen = 0;
+
+	for (; *inbuf; inbuf++) {
+		if(outlen + 3 > outbufsiz)
+			return outbufsiz;
+
+		if(table[*inbuf])
+			outlen += sprintf(outbuf, "%c", table[*inbuf]);
+		else
+			outlen += sprintf(outbuf, "%%%02X", *inbuf);
+
+		while(*++outbuf);
+	}
+
+	return outlen;
+}
+
+/* URL decoding function, stolen from
+ * https://stackoverflow.com/questions/2673207/c-c-url-decode-library
+ */
+int url_decode(char *dst, const char *src, int bufsiz) {
+        char a, b;
+	int outlen = 0;
+        while (*src) {
+		if(outlen > bufsiz)
+			return -1;
+
+                if ((*src == '%') &&
+                    ((a = src[1]) && (b = src[2])) &&
+                    (isxdigit(a) && isxdigit(b))) {
+                        if (a >= 'a')
+                                a -= 'a'-'A';
+                        if (a >= 'A')
+                                a -= ('A' - 10);
+                        else
+                                a -= '0';
+                        if (b >= 'a')
+                                b -= 'a'-'A';
+                        if (b >= 'A')
+                                b -= ('A' - 10);
+                        else
+                                b -= '0';
+                        *dst = 16*a+b;
+                        src+=3;
+			dst++;
+                } else {
+                        *dst = *src;
+			dst++;
+			src++;
+                }
+		outlen++;	
+        }
+
+        *dst++ = '\0';
+	return outlen;
 }
