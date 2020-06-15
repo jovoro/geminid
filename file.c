@@ -148,7 +148,7 @@ int read_directory(char *path, char *document_root, char *requesturl, char **buf
 			i = url_encode(table, tmpbuf, urlbuf, 4096);
 			linelen += 3 + i + 1 + strlen(ep->d_name) + 2;
 			outsiz += linelen;
-			if(np = realloc(bufloc, outsiz)) {
+			if((np = realloc(bufloc, outsiz))) {
 				*buffer = np;
 				bufloc = np;
 			} else {

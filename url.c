@@ -62,7 +62,7 @@ char *new_url_encoder_table() {
 	return table;
 }
 
-int url_encode(char *table, unsigned char *inbuf, char *outbuf, int outbufsiz) {
+int url_encode(char *table, char *inbuf, char *outbuf, int outbufsiz) {
 	int outlen = 0;
 
 	for (; *inbuf; inbuf++) {

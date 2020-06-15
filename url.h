@@ -49,5 +49,5 @@ int lexurl(URL *url, char *buf);
 URL *alexurl(char *buf);
 int build_request_string(char *buf, int bufsiz, URL *url);
 char *new_url_encoder_table();
-int url_encode(char *table, unsigned char *inbuf, char *outbuf, int outbufsiz);
+int url_encode(char *table, char *inbuf, char *outbuf, int outbufsiz);
 int url_decode(char *dst, const char *src, int bufsiz);
