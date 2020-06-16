@@ -126,9 +126,9 @@ int read_directory(char *path, char *document_root, char *requesturl, char **buf
 	if(!table)
 		return -1;
 
-	strncat(*buffer, "# Directory listing of ", 23);
+	strncat(*buffer, "# Directory listing of ", 24);
 	strncat(*buffer, path, strlen(path));
-	strncat(*buffer, "\r\n", 2);
+	strncat(*buffer, "\r\n", 3);
 
 	while ((ep = readdir(dp)) != NULL) {
 		if(strncmp(ep->d_name, ".", 1) == 0 || strncmp(ep->d_name, "..", 2) == 0)
@@ -141,7 +141,7 @@ int read_directory(char *path, char *document_root, char *requesturl, char **buf
 			strncat(tmpbuf, requesturl, strlen(requesturl));
 			strncat(tmpbuf, ep->d_name, strlen(ep->d_name));
 			if(S_ISDIR(statbuf.st_mode)) {
-				strncat(tmpbuf, "/", 1);
+				strncat(tmpbuf, "/", 2);
 				linelen += 1; /* For adding slash at the end of d_name to indicate directory */
 			}
 	
@@ -155,14 +155,14 @@ int read_directory(char *path, char *document_root, char *requesturl, char **buf
 				free(table);
 				return -1;
 			}
-			strncat(*buffer, "=> ", 3);
+			strncat(*buffer, "=> ", 4);
 			strncat(*buffer, urlbuf, i);
-			strncat(*buffer, " ", 1);
+			strncat(*buffer, " ", 2);
 			strncat(*buffer, ep->d_name, strlen(ep->d_name));
 			if(S_ISDIR(statbuf.st_mode)) {
-				strncat(*buffer, "/", 1);
+				strncat(*buffer, "/", 2);
 			}
-			strncat(*buffer, "\r\n", 2);
+			strncat(*buffer, "\r\n", 3);
 		}
 	}
 	bufloc[outsiz-1] = 0;
