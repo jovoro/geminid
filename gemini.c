@@ -82,10 +82,9 @@ int parse_request(char *buffer, int reqlen, URL *urlp) {
 		return -1;
 	}
 	
-	if(strcmp(urlp->userinfo, "") != 0) {
-		fprintf(stderr, "Error: Userinfo in URL request detected\n", buffer);
+	if(strcmp(urlp->userinfo, "") != 0)
 		return -2;
-	}
+
 
 	if(strncmp(urlp->scheme, "", MAX_URL_SCHEME) == 0)
 		strncpy(urlp->scheme, "gemini://", MAX_URL_SCHEME);
@@ -130,7 +129,7 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 		write_gemini_response(ssl, STATUS_PERMFAIL, 9, "Bad request", 11, "", 0);
 		log_access(access_log, reqbuf, "", "", STATUS_PERMFAIL, 9, 0, "-", "-");
 		if(i == -2)
-			snprintf(tmpbuf, MAXBUF, "Error: Userinfo detected in URL request\n", reqbuf);
+			snprintf(tmpbuf, MAXBUF, "Error: Userinfo detected in URL request\n");
 		else
 			snprintf(tmpbuf, MAXBUF, "Error: Could not parse request %s\n", reqbuf);
 
