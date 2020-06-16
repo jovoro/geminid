@@ -80,7 +80,7 @@ char *trim(char *str) {
 
     return str;
 }
-/* substring(index.gem, 5, 9)*/
+/* FIXME: This function seems to be never used */
 char *substring(char *s, int pos, int length) {
    char *sp;
    int c;
