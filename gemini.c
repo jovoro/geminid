@@ -57,12 +57,15 @@ int read_request(SSL *ssl, char *buffer) {
 
 int write_gemini_response(SSL *ssl, int status_major, int status_minor, char *meta, int metalen, char *buffer, int buflen) {
 	char *header;
-	int headerlen = MAXSTATUSSIZ+MAXWHITESIZ+metalen;
+	int headerlen = MAXSTATUSSIZ+MAXWHITESIZ+metalen+1;
 	header = malloc(headerlen);
+	if(header == NULL)
+		return -1;
 
 	snprintf(header, headerlen, "%d%d %s\r\n", status_major, status_minor, meta);
 	SSL_write(ssl, header, strlen(header));
 	SSL_write(ssl, buffer, buflen);
+	free(header);
 	return 1;
 }
 
