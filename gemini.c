@@ -127,6 +127,7 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 	}
 
 	i = build_request_string(reqbuf, MAXBUF, &requrl);
+	
 	if(i < 0) { 
 		write_gemini_response(ssl, STATUS_TEMPFAIL, 1, "Processing Error", 9, "", 0);
 		log_access(access_log, reqbuf, "", "", STATUS_TEMPFAIL, 1, 0, "-", "-");
@@ -134,15 +135,26 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 		log_error(error_log, tmpbuf);
 		return -1;
 	}
+	
 	strncpy(host, requrl.host, MAXBUF);
 	strncpy(path, requrl.path, MAXBUF);
 	snprintf(localpath, MAXBUF, "%s/%s", document_root, path);
 	pathbuf = realpath(localpath, NULL);
+	
+	if(pathbuf == NULL) {
+		write_gemini_response(ssl, STATUS_TEMPFAIL, 1, "I/O Error", 9, "", 0);
+		log_access(access_log, reqbuf, host, path, STATUS_TEMPFAIL, 1, 0, "-", "-");
+		snprintf(tmpbuf, MAXBUF, "Error: Could not get realpath for %s\n", localpath);
+		log_error(error_log, tmpbuf);
+		return -1;
+	}
+	
 	if(strncmp(document_root, pathbuf, strlen(document_root)) != 0) {
 		memcpy(localpath, document_root, strlen(document_root)+1);
 		localpath[strlen(document_root)+1] = 0;
 		strcat(localpath, "/");
 	}
+	
 	free(pathbuf);
 
 	if(access(localpath, R_OK) != -1) {
