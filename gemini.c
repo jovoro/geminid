@@ -81,6 +81,11 @@ int parse_request(char *buffer, int reqlen, URL *urlp) {
 		fprintf(stderr, "Error: Failed to parse URL: %s\n", buffer);
 		return -1;
 	}
+	
+	if(strcmp(urlp->userinfo, "") != 0) {
+		fprintf(stderr, "Error: Userinfo in URL request detected\n", buffer);
+		return -2;
+	}
 
 	if(strncmp(urlp->scheme, "", MAX_URL_SCHEME) == 0)
 		strncpy(urlp->scheme, "gemini://", MAX_URL_SCHEME);
@@ -122,9 +127,13 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 	i = parse_request(reqbuf, reqlen, &requrl);
 	
 	if(i < 0) {
-		write_gemini_response(ssl, STATUS_TEMPFAIL, 1, "Parsing Error", 9, "", 0);
-		log_access(access_log, reqbuf, "", "", STATUS_TEMPFAIL, 1, 0, "-", "-");
-		snprintf(tmpbuf, MAXBUF, "Error: Could not handle request for %s\n", reqbuf);
+		write_gemini_response(ssl, STATUS_PERMFAIL, 9, "Bad request", 11, "", 0);
+		log_access(access_log, reqbuf, "", "", STATUS_PERMFAIL, 9, 0, "-", "-");
+		if(i == -2)
+			snprintf(tmpbuf, MAXBUF, "Error: Userinfo detected in URL request\n", reqbuf);
+		else
+			snprintf(tmpbuf, MAXBUF, "Error: Could not parse request %s\n", reqbuf);
+
 		log_error(error_log, tmpbuf);
 		return -1;
 	}
@@ -145,8 +154,8 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 	pathbuf = realpath(localpath, NULL);
 	
 	if(pathbuf == NULL) {
-		write_gemini_response(ssl, STATUS_TEMPFAIL, 1, "I/O Error", 9, "", 0);
-		log_access(access_log, reqbuf, host, path, STATUS_TEMPFAIL, 1, 0, "-", "-");
+		write_gemini_response(ssl, STATUS_PERMFAIL, 1, "File not found", 14, "", 0);
+		log_access(access_log, reqbuf, host, path, STATUS_PERMFAIL, 1, 0, "-", "-");
 		snprintf(tmpbuf, MAXBUF, "Error: Could not get realpath for %s\n", localpath);
 		log_error(error_log, tmpbuf);
 		return -1;
@@ -156,6 +165,9 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 		memcpy(localpath, document_root, strlen(document_root)+1);
 		localpath[strlen(document_root)+1] = 0;
 		strcat(localpath, "/");
+		strncat(localpath, pathbuf, MAXBUF-strlen(localpath)-1);		
+		snprintf(requrl.path, MAX_URL_PATH, "/%s", pathbuf);
+		snprintf(path, MAXBUF-1, "/%s", pathbuf);
 	}
 	
 	free(pathbuf);

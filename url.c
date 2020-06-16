@@ -35,12 +35,15 @@
 
 int build_request_string(char *buf, int bufsiz, URL *url) {
 	int i;
+	
+	if(url == NULL)
+		return -1;
 
 	bufsiz--; /* Save one for \0 */
 	if(bufsiz < 1)
 		return -1;
 
-	return snprintf(buf, bufsiz, "%s%s%s%s%s%s%s", url->scheme, url->userinfo, url->host, url->port, url->path, url->query, url->fragment);
+	return snprintf(buf, bufsiz, "%s%s%s%s%s%s", url->scheme, url->host, url->port, url->path, url->query, url->fragment);
 }
 
 /* URL encoding function, stolen from 
