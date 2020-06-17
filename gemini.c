@@ -152,7 +152,15 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 	snprintf(localpath, MAXBUF, "%s/%s", document_root, path);
 	pathbuf = realpath(localpath, NULL);
 	
-	if(pathbuf == NULL || strncmp(document_root, pathbuf, strlen(document_root)) != 0) {
+	if(pathbuf == NULL) {
+		write_gemini_response(ssl, STATUS_PERMFAIL, 1, "File not found", 14, "", 0);
+		log_access(access_log, reqbuf, host, path, STATUS_PERMFAIL, 1, 0, "-", "-");
+		snprintf(tmpbuf, MAXBUF, "Error: Could not get realpath for %s\n", reqbuf);
+		log_error(error_log, tmpbuf);
+		return -1;
+	}
+	
+	if(strncmp(document_root, pathbuf, strlen(document_root)) != 0) {
 		memcpy(localpath, document_root, strlen(document_root)+1);
 		localpath[strlen(document_root)+1] = 0;
 		strcat(localpath, "/");
