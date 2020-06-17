@@ -152,21 +152,21 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 	snprintf(localpath, MAXBUF, "%s/%s", document_root, path);
 	pathbuf = realpath(localpath, NULL);
 	
-	if(pathbuf == NULL) {
-		write_gemini_response(ssl, STATUS_PERMFAIL, 1, "File not found", 14, "", 0);
-		log_access(access_log, reqbuf, host, path, STATUS_PERMFAIL, 1, 0, "-", "-");
-		snprintf(tmpbuf, MAXBUF, "Error: Could not get realpath for %s\n", localpath);
-		log_error(error_log, tmpbuf);
-		return -1;
-	}
-	
-	if(strncmp(document_root, pathbuf, strlen(document_root)) != 0) {
+	if(pathbuf == NULL || strncmp(document_root, pathbuf, strlen(document_root)) != 0) {
 		memcpy(localpath, document_root, strlen(document_root)+1);
 		localpath[strlen(document_root)+1] = 0;
 		strcat(localpath, "/");
-		strncat(localpath, pathbuf, MAXBUF-strlen(localpath)-1);		
-		snprintf(requrl.path, MAX_URL_PATH, "/%s", pathbuf);
-		snprintf(path, MAXBUF-1, "/%s", pathbuf);
+			
+		requrl.path[0] = path[0] = '/';
+		requrl.path[1] = path[1] = 0;
+		i = build_request_string(reqbuf, MAXBUF, &requrl);
+		if(i < 0) { 
+			write_gemini_response(ssl, STATUS_TEMPFAIL, 1, "Processing Error", 9, "", 0);
+			log_access(access_log, reqbuf, "", "", STATUS_TEMPFAIL, 1, 0, "-", "-");
+			snprintf(tmpbuf, MAXBUF, "Error: Could not handle request for %s\n", reqbuf);
+			log_error(error_log, tmpbuf);
+			return -1;
+		}
 	}
 	
 	free(pathbuf);
