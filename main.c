@@ -40,10 +40,11 @@
 #include <openssl/err.h>
 #include <libconfig.h>
 #include "tls.h"
+#include "vhost.h"
 #include "gemini.h"
 #include "log.h"
 #include "config.h"
-#include "vhost.h"
+
 
 int listen_port;
 char server_root[MAXBUF];
@@ -56,16 +57,16 @@ unsigned int vhostcount = 0;
 void initWorker(int client) {
 	int i;
 	char document_root[MAXBUF];
-        SSL *ssl;
+	SSL *ssl;
 	VHOST *select_vhost;
 
 	SSL_CTX_set_tlsext_servername_callback(vhost->ctx, sni_cb);
-        ssl = SSL_new(vhost->ctx); /* Use first vhost as default context */
-        SSL_set_fd(ssl, client);
+	ssl = SSL_new(vhost->ctx); /* Use first vhost as default context */
+	SSL_set_fd(ssl, client);
 
-        if (SSL_accept(ssl) <= 0) {
+	if (SSL_accept(ssl) <= 0) {
 		ERR_print_errors_fp(stderr);
-        } else {
+	} else {
 		select_vhost = get_current_vhost();
 		if(select_vhost == NULL) {
 			fprintf(stderr, "Cannot get current vhost\n");
@@ -73,12 +74,12 @@ void initWorker(int client) {
 		}
 		
 		snprintf(document_root, MAXBUF-1, "%s/%s", server_root, select_vhost->docroot);
-		handle_request(ssl, document_root, select_vhost->defaultdocument, select_vhost->accesslog, select_vhost->errorlog);
-        }
+		handle_request(ssl, document_root, select_vhost);
+	}
 
-        SSL_shutdown(ssl);
-        SSL_free(ssl);
-        close(client);
+	SSL_shutdown(ssl);
+	SSL_free(ssl);
+	close(client);
 }
 
 void usage(char *progname) {
@@ -146,7 +147,7 @@ int main(int argc, char **argv) {
 		exit(EXIT_FAILURE);
 	}
 
-	if(global == NULL || global == NULL) {
+	if(global == NULL || vhostlist == NULL) {
 		config_destroy(&cfg);
 		fprintf(stderr, "Cannot parse config.\n");
 		exit(EXIT_FAILURE);
@@ -182,7 +183,7 @@ int main(int argc, char **argv) {
 	for(i=0; i < vhostcount; i++) {
 		snprintf(accesslog_path, MAXBUF-1, "%s/%s", global->logdir, vhcp->accesslog);
 		snprintf(errorlog_path, MAXBUF-1, "%s/%s", global->logdir, vhcp->errorlog);
-		tempvhp = create_vhost(vhcp->name, vhcp->docroot, vhcp->index, accesslog_path, errorlog_path, vhcp->cert, vhcp->key);
+		tempvhp = create_vhost(vhcp->name, vhcp->docroot, vhcp->index, accesslog_path, errorlog_path, vhcp->cert, vhcp->key, vhcp->certloc);
 		if(tempvhp == NULL) {
 			fprintf(stderr, "Error allocating vhost struct\n");
 			exit(EXIT_FAILURE);
@@ -191,7 +192,7 @@ int main(int argc, char **argv) {
 		free(tempvhp);
 			
 		/* Print configuration settings */
-		fprintf(stderr, "serverroot: %s\nlogdir: %s\nhostname: %s\naccess_log_path: %s\nerror_log_path: %s\ndefault_document: %s\nlisten_port: %d\ndocument_root: %s\npublic key: %s\nprivate key: %s\n\n\n", server_root, global->logdir, vhcp->name, accesslog_path, errorlog_path, vhcp->index, global->port, vhcp->docroot, vhcp->cert, vhcp->key);
+		fprintf(stderr, "serverroot: %s\nlogdir: %s\nhostname: %s\naccess_log_path: %s\nerror_log_path: %s\ndefault_document: %s\nlisten_port: %d\ndocument_root: %s\npublic key: %s\nprivate key: %s\nclient certificate location: %s\n\n", server_root, global->logdir, vhcp->name, accesslog_path, errorlog_path, vhcp->index, global->port, vhcp->docroot, vhcp->cert, vhcp->key, vhcp->certloc);
 		vhcp++;
 		vhp++;
 	}

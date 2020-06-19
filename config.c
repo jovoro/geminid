@@ -82,7 +82,8 @@ VHOSTLIST *new_vhostlist(config_t *cfg) {
 		           && config_setting_lookup_string(vhost, "errorlog", &(vhostlist->vhost->errorlog))
 		           && config_setting_lookup_string(vhost, "cert", &(vhostlist->vhost->cert))
 		           && config_setting_lookup_string(vhost, "key", &(vhostlist->vhost->key))
-		           && config_setting_lookup_string(vhost, "index", &(vhostlist->vhost->index)))) {
+		           && config_setting_lookup_string(vhost, "index", &(vhostlist->vhost->index))
+				   && config_setting_lookup_string(vhost, "certloc", &(vhostlist->vhost->certloc)))) {
 				fprintf(stderr, "Failed parsing config\n");
 				return NULL;
 			}

@@ -30,14 +30,17 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <dirent.h>
 #include <netinet/in.h>
+#include <sys/stat.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include "vhost.h"
 #include "tls.h"
 #include "gemini.h"
-#include "vhost.h"
+
 extern VHOST *vhost;
 extern unsigned int vhostcount;
 
@@ -126,9 +129,54 @@ int sni_cb(SSL *ssl, int *ad, void *arg) {
 
 	return SSL_TLSEXT_ERR_NOACK;
 }
+ 
+int load_trusted_client_certs(SSL_CTX *ctx, const char *client_certificate_location) {
+	DIR *dp;
+	FILE *fp;
+	int i = 0;
+	struct dirent *ep;
+	struct stat statbuf;
+	char certpath[MAXBUF];
+	X509 *cert;
+	
+	dp = opendir(client_certificate_location);
+	if(dp == NULL)
+		return -1;
+	
+	while ((ep = readdir(dp)) != NULL) {
+		snprintf(certpath, MAXBUF, "%s/%s", client_certificate_location, ep->d_name);
+		if((i = stat(certpath, &statbuf)) == 0) {
+			if(S_ISDIR(statbuf.st_mode))
+				continue;
+			
+			fp = fopen(certpath, "r");
+			if(!fp)
+				continue;
+			
+			cert = PEM_read_X509(fp, NULL, NULL, NULL);
+			if(!cert) {
+				fclose(fp);
+				continue;
+			}
+			
+			SSL_CTX_add_client_CA(ctx, cert);
+			SSL_CTX_load_verify_locations(ctx, certpath, NULL);
+			X509_free(cert);
+			fclose(fp);
+			i++;
+		}
+	}
+	
+	/*if(SSL_CTX_load_verify_locations(ctx, NULL, certloc) < 1)
+		return -1;*/
+	
+	return i;
+}
 
-void configure_context(SSL_CTX *ctx, const char *cert_public_path, const char *cert_private_path) {
+void configure_context(SSL_CTX *ctx, const char *cert_public_path, const char *cert_private_path, const char *client_certificate_location) {
 	SSL_CTX_set_ecdh_auto(ctx, 1);
+	if(load_trusted_client_certs(ctx, client_certificate_location) > 0)
+		SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
 
 	if (SSL_CTX_use_certificate_file(ctx, cert_public_path, SSL_FILETYPE_PEM) <= 0) {
 		ERR_print_errors_fp(stderr);
@@ -140,3 +188,4 @@ void configure_context(SSL_CTX *ctx, const char *cert_public_path, const char *c
 		exit(EXIT_FAILURE);
 	}
 }
+

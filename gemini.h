@@ -40,14 +40,12 @@
 #define DOCUMENT_ROOT "docroot"
 #define LISTEN_PORT 1965
 
-
 int handle_request();
 
 enum { REQ_GEMINI, REQ_GOPHER };
 
-enum { STATUS_DUMMY, STATUS_INPUT, STATUS_SUCCESS, STATUS_REDIRECT, STATUS_TEMPFAIL, STATUS_PERMFAIL, STATUS_CERTREQ };
+enum { STATUS_DUMMY, STATUS_INPUT, STATUS_SUCCESS, STATUS_REDIRECT, STATUS_TEMPFAIL, STATUS_PERMFAIL, STATUS_CERT };
 
 extern int listen_port;
-extern char default_document[MAXBUF];
 extern char log_time_format[MAXBUF];
 extern short log_local_time;

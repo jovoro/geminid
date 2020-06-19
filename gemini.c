@@ -44,12 +44,14 @@
 #endif /* __linux__ */
 #include <sys/stat.h>
 #include <magic.h>
+#include "vhost.h"
 #include "gemini.h"
 #include "util.h"
 #include "mime.h"
 #include "file.h"
 #include "log.h"
 #include "url.h"
+
 
 int read_request(SSL *ssl, char *buffer) {
 	return SSL_read(ssl, buffer, MAXREQSIZ);
@@ -99,7 +101,7 @@ int parse_request(char *buffer, int reqlen, URL *urlp) {
 	return 1;
 }
 
-int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *access_log, FILE *error_log) {
+int handle_request(SSL *ssl, char *document_root, VHOST *vhost) {
 	int reqlen = 0;
 	int reslen = 0;
 	int mimelen = 0;
@@ -116,24 +118,25 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 	struct stat statbuf;
 	struct stat defdocstatbuf;
 	URL requrl;
+	X509 *pcert;
 
 	memset(reqbuf, 0, MAXBUF);
 	memset(host, 0, MAXBUF);
 	memset(path, 0, MAXBUF);
 	memset(localpath, 0, MAXBUF);
-
+	
 	reqlen = read_request(ssl, reqbuf);
 	i = parse_request(reqbuf, reqlen, &requrl);
 	
 	if(i < 0) {
 		write_gemini_response(ssl, STATUS_PERMFAIL, 9, "Bad request", 11, "", 0);
-		log_access(access_log, reqbuf, "", "", STATUS_PERMFAIL, 9, 0, "-", "-");
+		log_access(vhost->accesslog, reqbuf, "", "", STATUS_PERMFAIL, 9, 0, "-", "-");
 		if(i == -2)
 			snprintf(tmpbuf, MAXBUF, "Error: Userinfo detected in URL request\n");
 		else
 			snprintf(tmpbuf, MAXBUF, "Error: Could not parse request %s\n", reqbuf);
 
-		log_error(error_log, tmpbuf);
+		log_error(vhost->errorlog, tmpbuf);
 		return -1;
 	}
 
@@ -141,9 +144,9 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 	
 	if(i < 0) { 
 		write_gemini_response(ssl, STATUS_TEMPFAIL, 1, "Processing Error", 9, "", 0);
-		log_access(access_log, reqbuf, "", "", STATUS_TEMPFAIL, 1, 0, "-", "-");
+		log_access(vhost->accesslog, reqbuf, "", "", STATUS_TEMPFAIL, 1, 0, "-", "-");
 		snprintf(tmpbuf, MAXBUF, "Error: Could not handle request for %s\n", reqbuf);
-		log_error(error_log, tmpbuf);
+		log_error(vhost->errorlog, tmpbuf);
 		return -1;
 	}
 	
@@ -154,9 +157,9 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 	
 	if(pathbuf == NULL) {
 		write_gemini_response(ssl, STATUS_PERMFAIL, 1, "File not found", 14, "", 0);
-		log_access(access_log, reqbuf, host, path, STATUS_PERMFAIL, 1, 0, "-", "-");
+		log_access(vhost->accesslog, reqbuf, host, path, STATUS_PERMFAIL, 1, 0, "-", "-");
 		snprintf(tmpbuf, MAXBUF, "Error: Could not get realpath for %s\n", reqbuf);
-		log_error(error_log, tmpbuf);
+		log_error(vhost->errorlog, tmpbuf);
 		return -1;
 	}
 	
@@ -170,21 +173,36 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 		i = build_request_string(reqbuf, MAXBUF, &requrl);
 		if(i < 0) { 
 			write_gemini_response(ssl, STATUS_TEMPFAIL, 1, "Processing Error", 9, "", 0);
-			log_access(access_log, reqbuf, "", "", STATUS_TEMPFAIL, 1, 0, "-", "-");
+			log_access(vhost->accesslog, reqbuf, "", "", STATUS_TEMPFAIL, 1, 0, "-", "-");
 			snprintf(tmpbuf, MAXBUF, "Error: Could not handle request for %s\n", reqbuf);
-			log_error(error_log, tmpbuf);
+			log_error(vhost->errorlog, tmpbuf);
 			return -1;
 		}
 	}
 	
 	free(pathbuf);
+	
+	/* temporary playground for client cert testing */
+	if(strncmp(path, "/secure", 7) == 0) {
+		/* Request client certificates */
+		pcert = SSL_get_peer_certificate(ssl);
+		if(pcert != NULL) {
+			fprintf(stderr, "Client certificate:\nSubject: %s\n", X509_NAME_oneline(X509_get_subject_name(pcert), 0, 0));
+			free(pcert);
+		} else {
+			write_gemini_response(ssl, STATUS_CERT, 0, "Client certificate required", 27, "", 0);
+			log_access(vhost->accesslog, reqbuf, host, path, STATUS_CERT, 0, 0, "-", "-");
+			return -1;
+		}
+	}
 
 	if(access(localpath, R_OK) != -1) {
 		/* Local path is readable; Find out, if file or directory */
 		/* FIXME: What happens if it is neither of both..? Hm... */
 		if((i = stat(localpath, &statbuf)) != 0) {
 			write_gemini_response(ssl, STATUS_TEMPFAIL, 1, "I/O Error", 9, "", 0);
-			log_access(access_log, reqbuf, host, path, STATUS_TEMPFAIL, 1, 0, "-", "-");
+			log_access(vhost->accesslog, reqbuf, host, path, STATUS_TEMPFAIL, 1, 0, "-", "-");
+	
 			return -1;
 		}
 		if(S_ISDIR(statbuf.st_mode)) {
@@ -194,11 +212,12 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 				/* redirect to correct location with trailing slash (status 31) */
 				snprintf(mime, MAXBUF, "%s/", reqbuf);
 				write_gemini_response(ssl, STATUS_REDIRECT, 1, mime, strlen(mime), "", 0);
-				log_access(access_log, reqbuf, host, path, STATUS_REDIRECT, 1, 0, "-", "-");
+				log_access(vhost->accesslog, reqbuf, host, path, STATUS_REDIRECT, 1, 0, "-", "-");
+			
 				return 0;
 			}
 
-			snprintf(defdocpath, MAXBUF, "%s/%s", localpath, default_document);
+			snprintf(defdocpath, MAXBUF, "%s/%s", localpath, vhost->defaultdocument);
 			if(access(defdocpath, R_OK) != -1) {
 				if((i = stat(defdocpath, &defdocstatbuf)) == 0) {
 					/* We have a default document, read it */
@@ -207,7 +226,8 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 					reslen = read_file(defdocpath, resbuf);
 				} else {
 					write_gemini_response(ssl, STATUS_TEMPFAIL, 1, "I/O Error", 9, "", 0);
-					log_access(access_log, reqbuf, host, path, STATUS_TEMPFAIL, 1, 0, "-", "-");
+					log_access(vhost->accesslog, reqbuf, host, path, STATUS_TEMPFAIL, 1, 0, "-", "-");
+					
 					return -1;
 				}
 			} else {
@@ -218,7 +238,8 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 				reslen--; /* Dont write terminating NULL byte */
 				if(reslen < 0) {
 					write_gemini_response(ssl, STATUS_TEMPFAIL, 1, "I/O Error", 9, "", 0);
-					log_access(access_log, reqbuf, host, path, STATUS_TEMPFAIL, 1, 0, "-", "-");
+					log_access(vhost->accesslog, reqbuf, host, path, STATUS_TEMPFAIL, 1, 0, "-", "-");
+					
 					return -1;
 				}
 			}
@@ -230,11 +251,12 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 		}
 		if(reslen < 1) {
 			write_gemini_response(ssl, STATUS_TEMPFAIL, 1, "I/O Error", 9, "", 0);
-			log_access(access_log, reqbuf, host, path, STATUS_TEMPFAIL, 1, 0, "-", "-");
+			log_access(vhost->accesslog, reqbuf, host, path, STATUS_TEMPFAIL, 1, 0, "-", "-");
+			
 			return -1;
 		}
 		write_gemini_response(ssl, STATUS_SUCCESS, 0, mime, mimelen, resbuf, reslen);
-		log_access(access_log, reqbuf, host, path, STATUS_SUCCESS, 0, reslen, "-", "-");
+		log_access(vhost->accesslog, reqbuf, host, path, STATUS_SUCCESS, 0, reslen, "-", "-");
 		free(resbuf);
 	} else {
 		/* Local path is not readable. Currently, this simply means, that the file
@@ -242,9 +264,10 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 		 * this could mean more than that.
 		 */
 		write_gemini_response(ssl, STATUS_PERMFAIL, 1, "File not found", 14, "", 0);
-		log_access(access_log, reqbuf, host, path, STATUS_PERMFAIL, 1, 0, "-", "-");
+		log_access(vhost->accesslog, reqbuf, host, path, STATUS_PERMFAIL, 1, 0, "-", "-");
 	}
 
+	
 	return 1;
 }
 

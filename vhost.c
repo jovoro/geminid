@@ -32,12 +32,12 @@
 #include <string.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
-#include "tls.h"
 #include "vhost.h"
+#include "tls.h"
 
 VHOST *current_vhost = NULL;
 
-VHOST *create_vhost(const char *hostname, const char *docroot, const char *defaultdocument, const char *accesslog_path, const char *errorlog_path, const char *cert_public_path, const char *cert_private_path) {
+VHOST *create_vhost(const char *hostname, const char *docroot, const char *defaultdocument, const char *accesslog_path, const char *errorlog_path, const char *cert_public_path, const char *cert_private_path, const char *client_certificate_location) {
 	unsigned int i;
 	VHOST *vhost;
 
@@ -78,7 +78,7 @@ VHOST *create_vhost(const char *hostname, const char *docroot, const char *defau
 		fprintf(stderr, "Error creating SSL context\n");
 	}
 
-	configure_context(vhost->ctx, cert_public_path, cert_private_path);
+	configure_context(vhost->ctx, cert_public_path, cert_private_path, client_certificate_location);
 	return vhost;
 }
 

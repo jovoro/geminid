@@ -43,6 +43,7 @@ typedef struct {
 	const char *cert;
 	const char *key;
 	const char *index;
+	const char *certloc;
 } VHOSTCONF;
 
 typedef struct {
