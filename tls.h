@@ -32,4 +32,5 @@ void cleanup_openssl();
 SSL_CTX *create_context();
 void configure_context(SSL_CTX *ctx, const char *cert_public_path, const char *cert_private_path, const char *client_certificate_location);
 int sni_cb(SSL *ssl, int *ad, void *arg);
+static int verify_cb(int preverify_ok, X509_STORE_CTX *ctx);
 extern unsigned int vhostcount;

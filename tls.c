@@ -140,8 +140,10 @@ int load_trusted_client_certs(SSL_CTX *ctx, const char *client_certificate_locat
 	X509 *cert;
 	
 	dp = opendir(client_certificate_location);
-	if(dp == NULL)
-		return -1;
+	if(dp == NULL) {
+		fprintf(stderr, "Error: Cannot open client certificate location: %s\n", client_certificate_location);
+		exit(1);
+	}
 	
 	while ((ep = readdir(dp)) != NULL) {
 		snprintf(certpath, MAXBUF, "%s/%s", client_certificate_location, ep->d_name);
@@ -167,16 +169,13 @@ int load_trusted_client_certs(SSL_CTX *ctx, const char *client_certificate_locat
 		}
 	}
 	
-	/*if(SSL_CTX_load_verify_locations(ctx, NULL, certloc) < 1)
-		return -1;*/
-	
 	return i;
 }
 
 void configure_context(SSL_CTX *ctx, const char *cert_public_path, const char *cert_private_path, const char *client_certificate_location) {
 	SSL_CTX_set_ecdh_auto(ctx, 1);
 	if(load_trusted_client_certs(ctx, client_certificate_location) > 0)
-		SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
+		SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, verify_cb);
 
 	if (SSL_CTX_use_certificate_file(ctx, cert_public_path, SSL_FILETYPE_PEM) <= 0) {
 		ERR_print_errors_fp(stderr);
@@ -189,3 +188,57 @@ void configure_context(SSL_CTX *ctx, const char *cert_public_path, const char *c
 	}
 }
 
+static int verify_cb(int preverify_ok, X509_STORE_CTX *ctx) {
+	char buf[256];
+	X509 *err_cert;
+	int err;
+	int depth;
+	SSL *ssl;
+
+	err_cert = X509_STORE_CTX_get_current_cert(ctx);
+	err = X509_STORE_CTX_get_error(ctx);
+	depth = X509_STORE_CTX_get_error_depth(ctx);
+
+	/*
+	 * Retrieve the pointer to the SSL of the connection currently treated
+	 * and the application specific data stored into the SSL object.
+	 */
+	ssl = X509_STORE_CTX_get_ex_data(ctx, SSL_get_ex_data_X509_STORE_CTX_idx());
+
+	X509_NAME_oneline(X509_get_subject_name(err_cert), buf, 256);
+
+	/*
+	 * Catch a too long certificate chain. The depth limit set using
+	 * SSL_CTX_set_verify_depth() is by purpose set to "limit+1" so
+	 * that whenever the "depth>verify_depth" condition is met, we
+	 * have violated the limit and want to log this error condition.
+	 * We must do it here, because the CHAIN_TOO_LONG error would not
+	 * be found explicitly; only errors introduced by cutting off the
+	 * additional certificates would be logged.
+	 */
+	if (depth > 1) {
+		preverify_ok = 0;
+		err = X509_V_ERR_CERT_CHAIN_TOO_LONG;
+		X509_STORE_CTX_set_error(ctx, err);
+	}
+	if(!preverify_ok)
+		SSL_write(ssl, "62 Certificate not valid\r\n", 26);
+	if (!preverify_ok) {
+		printf("verify error:num=%d:%s:depth=%d:%s\n", err,
+				 X509_verify_cert_error_string(err), depth, buf);
+	}
+	
+	/*
+	 * At this point, err contains the last verification error. We can use
+	 * it for something special
+	 */
+	if (!preverify_ok && (err == X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT))
+	{
+	  X509_NAME_oneline(X509_get_issuer_name(X509_STORE_CTX_get_current_cert(ctx)), buf, 256);
+	  printf("issuer= %s\n", buf);
+	}
+	
+	
+	
+	return preverify_ok;
+ }
