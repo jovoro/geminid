@@ -20,6 +20,16 @@ EOF
 ```
 to let the preprocessor and linker know where to look for libraries, i.e. libconfig.
 
+If you are running CentOS 7 you may want to install and use the separately packaged version of OpenSSL 1.1.x, as mentioned by Jaroslaw Zachwieja:
+
+```
+# yum install gcc openssl11-devel file-devel libconfig-devel flex
+$ cat > Makefile.local <<EOF
+INCDIRS=-I/usr/include/openssl11
+LIBDIRS=-L/usr/lib64/openssl11
+EOF
+```
+
 ## Configuring
 There's an example configuration file named `example.conf` in this repo. You can define multiple virtual hosts, of which the first definition is the default vhost. The default vhost is used if no servername is defined during the TLS handshake or if no vhost definition matches the provided hostname. Each vhost needs a separate TLS certificate.
 
