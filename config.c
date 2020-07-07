@@ -55,6 +55,8 @@ GLOBALCONF *new_globalconf(config_t *cfg) {
 			fprintf(stderr, "Failed parsing config\n");
 			return NULL;
 		}
+		if(!config_setting_lookup_bool(setting, "ipv6_enable", &(global->ipv6_enable)))
+			global->ipv6_enable = 0;
 	}
 	return global;
 }
@@ -86,6 +88,7 @@ VHOSTLIST *new_vhostlist(config_t *cfg) {
 				fprintf(stderr, "Failed parsing config\n");
 				return NULL;
 			}
+			
 			vhostlist->vhost++;
 		}
 		vhostlist->vhost = firstvhost;

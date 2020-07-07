@@ -99,7 +99,8 @@ int main(int argc, char **argv) {
 	int true = 1;
 	int opt;
 	uint len;
-	struct sockaddr_in6 addr;
+	struct sockaddr_in addr;
+	struct sockaddr_in6 addr6;
 	SSL_CTX *ctx;
 	char tmpbuf[MAXBUF];
 	char configpath[MAXBUF];
@@ -201,8 +202,11 @@ int main(int argc, char **argv) {
 		exit(EXIT_FAILURE);
 	}
 
-
-	sock = create_socket(listen_port);
+	if(global->ipv6_enable)
+		sock = create_socket6(listen_port);
+	else
+		sock = create_socket(listen_port);
+	
 	setsockopt(sock,SOL_SOCKET,SO_REUSEADDR,&true,sizeof(int));
 
 	/* Auto-reap zombies for now.
@@ -212,8 +216,13 @@ int main(int argc, char **argv) {
 	signal(SIGCHLD, SIG_IGN);
 	
 	while(keepRunning) {
-		len = sizeof(addr);
-		client = accept(sock, (struct sockaddr*)&addr, &len);
+		if(global->ipv6_enable) {
+			len = sizeof(addr6);
+			client = accept(sock, (struct sockaddr*)&addr6, &len);
+		} else {
+			len = sizeof(addr);
+			client = accept(sock, (struct sockaddr*)&addr, &len);
+		}
 		if (client < 0) {
 			perror("Unable to accept");
 			exit(EXIT_FAILURE);

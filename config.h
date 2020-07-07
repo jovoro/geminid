@@ -33,6 +33,7 @@ typedef struct {
 	int port;
 	const char *loglocaltime;
 	const char *logtimeformat;
+	int ipv6_enable;
 } GLOBALCONF;
 
 typedef struct {
