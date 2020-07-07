@@ -130,7 +130,7 @@ int sni_cb(SSL *ssl, int *ad, void *arg) {
 void configure_context(SSL_CTX *ctx, const char *cert_public_path, const char *cert_private_path) {
 	SSL_CTX_set_ecdh_auto(ctx, 1);
 
-	if (SSL_CTX_use_certificate_file(ctx, cert_public_path, SSL_FILETYPE_PEM) <= 0) {
+	if (SSL_CTX_use_certificate_chain_file(ctx, cert_public_path) <= 0) {
 		ERR_print_errors_fp(stderr);
 		exit(EXIT_FAILURE);
 	}
