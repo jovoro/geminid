@@ -99,7 +99,7 @@ int main(int argc, char **argv) {
 	int true = 1;
 	int opt;
 	uint len;
-	struct sockaddr_in addr;
+	struct sockaddr_in6 addr;
 	SSL_CTX *ctx;
 	char tmpbuf[MAXBUF];
 	char configpath[MAXBUF];

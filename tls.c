@@ -43,13 +43,13 @@ extern unsigned int vhostcount;
 
 int create_socket(int port) {
 	int s;
-	struct sockaddr_in addr;
+	struct sockaddr_in6 addr;
 	
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(port);
-	addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	addr.sin6_family = AF_INET6;
+	addr.sin6_port = htons(port);
+	inet_pton(AF_INET6, "::", &addr.sin6_addr);
 	
-	s = socket(AF_INET, SOCK_STREAM, 0);
+	s = socket(AF_INET6, SOCK_STREAM, 0);
 	if (s < 0) {
 		perror("Unable to create socket");
 		exit(EXIT_FAILURE);
