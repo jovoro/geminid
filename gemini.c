@@ -52,7 +52,12 @@
 #include "url.h"
 
 int read_request(SSL *ssl, char *buffer) {
-	return SSL_read(ssl, buffer, MAXREQSIZ);
+	int i;
+	i = SSL_read(ssl, buffer, MAXREQSIZ+1);
+	if(i > 1024)
+		return -1;
+	else
+		return i;
 }
 
 int write_gemini_response(SSL *ssl, int status_major, int status_minor, char *meta, int metalen, char *buffer, int buflen) {
@@ -123,8 +128,15 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 	memset(localpath, 0, MAXBUF);
 
 	reqlen = read_request(ssl, reqbuf);
+	if(reqlen < 0) {
+		write_gemini_response(ssl, STATUS_PERMFAIL, 9, "Request too long", 11, "", 0);
+		log_access(access_log, reqbuf, "", "", STATUS_PERMFAIL, 9, 0, "-", "-");
+		snprintf(tmpbuf, MAXBUF, "Error: Request too long\n");
+		log_error(error_log, tmpbuf);
+		return -1;
+	}
+
 	i = parse_request(reqbuf, reqlen, &requrl);
-	
 	if(i < 0) {
 		write_gemini_response(ssl, STATUS_PERMFAIL, 9, "Bad request", 11, "", 0);
 		log_access(access_log, reqbuf, "", "", STATUS_PERMFAIL, 9, 0, "-", "-");
@@ -138,7 +150,6 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 	}
 
 	i = build_request_string(reqbuf, MAXBUF, &requrl);
-	
 	if(i < 0) { 
 		write_gemini_response(ssl, STATUS_TEMPFAIL, 1, "Processing Error", 9, "", 0);
 		log_access(access_log, reqbuf, "", "", STATUS_TEMPFAIL, 1, 0, "-", "-");
