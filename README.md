@@ -35,6 +35,8 @@ There's an example configuration file named `example.conf` in this repo. You can
 
 The format of log times is described according to `strftime(3)`. The `docroot` directive is relative to the `serverroot`. Log files are relative to `logdir`. Certificates are absolute or relative to the cwd of the geminid process, since they tend to live anywhere on the filesystem. I don't know if that makes sense to you. If it doesn't, let me know - I'd love to hear your thoughts.
 
+There is the possibility to use IPv6. Only one address will be bound, though. If you want to use both IPv4 and IPv6 use have to use 4in6. On some systems this needs to be enabled explicitly, for example on FreeBSD you'd have to change the following sysctl parameter: `net.inet6.ip6.v6only=0`
+
 ## Running
 Just run the produced executable geminid. Some options are now configurable via command line parameters:
 - `-c <config>`: Path to the configuration file
