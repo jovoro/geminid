@@ -45,13 +45,20 @@
 #include "config.h"
 #include "vhost.h"
 
+int sock;
 int listen_port;
+char configpath[MAXBUF];
 char server_root[MAXBUF];
 char log_time_format[MAXBUF];
 short log_local_time;
 static volatile int keepRunning = 1;
-VHOST *vhost;
 unsigned int vhostcount = 0;
+VHOST *vhost;
+GLOBALCONF *global;
+config_t cfg;
+
+void prepConfig();
+void cleanupConfig();
 
 void initWorker(int client) {
 	int i;
@@ -92,53 +99,20 @@ void intHandler(int signal) {
 	keepRunning = 0;
 }
 
-int main(int argc, char **argv) {
-	int sock;
-	int pid;
-	int client;
-	int true = 1;
-	int opt;
-	uint len;
-	struct sockaddr_in addr;
-	struct sockaddr_in6 addr6;
-	SSL_CTX *ctx;
-	char tmpbuf[MAXBUF];
-	char configpath[MAXBUF];
+void hupHandler(int signal) {
+/*	cleanup_openssl();*/
+	cleanupConfig();
+	prepConfig();
+}
+
+void prepConfig() {
+	unsigned int i;
 	char accesslog_path[MAXBUF];
 	char errorlog_path[MAXBUF];
-	GLOBALCONF *global;
+	VHOST *tempvhp;
 	VHOSTLIST *vhostlist;
 	VHOSTCONF *vhcp;
 	VHOST *vhp;
-	VHOST *tempvhp;
-	config_t cfg;
-	unsigned int i;
-
-	while((opt = getopt(argc, argv, "c:t")) != -1) {
-		switch(opt) {
-			case 'c':
-				if(strlen(optarg) < 1)
-					usage(argv[0]);
-
-				snprintf(configpath, MAXBUF-1, "%s", optarg);
-				break;
-
-			case 't':
-				if(strncmp(configpath, "", MAXBUF) == 0)
-					usage(argv[0]);
-
-				testprintconfig(configpath);
-				exit(EXIT_SUCCESS);
-
-			default:
-				usage(argv[0]);
-		}
-	}
-
-	if(strncmp(configpath, "", MAXBUF) == 0)
-		usage(argv[0]);
-
-/*	signal(SIGINT, intHandler); */
 
 	/* Prepare configuration */
 	if(init_geminid_config(configpath, &cfg, &global, &vhostlist) < 1) {
@@ -147,7 +121,7 @@ int main(int argc, char **argv) {
 		exit(EXIT_FAILURE);
 	}
 
-	if(global == NULL || global == NULL) {
+	if(global == NULL || vhostlist == NULL) {
 		config_destroy(&cfg);
 		fprintf(stderr, "Cannot parse config.\n");
 		exit(EXIT_FAILURE);
@@ -158,8 +132,6 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "No vhosts defined.\n");
 		exit(EXIT_FAILURE);
 	}
-
-	init_openssl();
 
 	/* Global configuration */
 	strncpy(server_root, global->serverroot, MAXBUF-1);
@@ -196,11 +168,62 @@ int main(int argc, char **argv) {
 		vhcp++;
 		vhp++;
 	}
+
 	i = set_current_vhost(vhost);
 	if(i < 0) {
 		fprintf(stderr, "Cannot set current (default) vhost\n");
 		exit(EXIT_FAILURE);
 	}
+	free(vhostlist);
+}
+
+void cleanupConfig() {
+	destroy_vhost(vhost, vhostcount);	
+	free(global);
+	config_destroy(&cfg);
+}
+
+int main(int argc, char **argv) {
+	unsigned int i;
+	int true = 1;
+	int pid;
+	int client;
+	int opt;
+	unsigned int len;
+	struct sockaddr_in addr;
+	struct sockaddr_in6 addr6;
+	SSL_CTX *ctx;
+	char tmpbuf[MAXBUF];
+
+	while((opt = getopt(argc, argv, "c:t")) != -1) {
+		switch(opt) {
+			case 'c':
+				if(strlen(optarg) < 1)
+					usage(argv[0]);
+
+				snprintf(configpath, MAXBUF-1, "%s", optarg);
+				break;
+
+			case 't':
+				if(strncmp(configpath, "", MAXBUF) == 0)
+					usage(argv[0]);
+
+				testprintconfig(configpath);
+				exit(EXIT_SUCCESS);
+
+			default:
+				usage(argv[0]);
+		}
+	}
+
+	if(strncmp(configpath, "", MAXBUF) == 0)
+		usage(argv[0]);
+
+/*	signal(SIGINT, intHandler); */
+	signal(SIGHUP, hupHandler);
+	signal(SIGCHLD, SIG_IGN);
+	prepConfig();
+	init_openssl();
 
 	if(global->ipv6_enable)
 		sock = create_socket6(listen_port);
@@ -209,17 +232,12 @@ int main(int argc, char **argv) {
 	
 	setsockopt(sock,SOL_SOCKET,SO_REUSEADDR,&true,sizeof(int));
 
-	/* Auto-reap zombies for now.
-	 * Maybe refine that with a real signal handler later 
-	 * to get exit codes from children.
-	 */
-	signal(SIGCHLD, SIG_IGN);
+
 	
 	while(keepRunning) {
 		if(global->ipv6_enable) {
 			len = sizeof(addr6);
-			client = accept(sock, (struct sockaddr*)&addr6, &len);
-		} else {
+			client = accept(sock, (struct sockaddr*)&addr6, &len); } else {
 			len = sizeof(addr);
 			client = accept(sock, (struct sockaddr*)&addr, &len);
 		}
@@ -240,13 +258,9 @@ int main(int argc, char **argv) {
 			perror("Unable to fork");
 		}
 	}
-
-	destroy_vhost(vhost, vhostcount);	
-	close(sock);
-	cleanup_openssl();
 	
-	free(global);
-	free(vhostlist);
-	config_destroy(&cfg);
+	cleanup_openssl();
+	close(sock);
+	cleanupConfig();
 }
 
