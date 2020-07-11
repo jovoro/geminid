@@ -225,7 +225,7 @@ int main(int argc, char **argv) {
 		}
 		if (client < 0) {
 			perror("Unable to accept");
-			exit(EXIT_FAILURE);
+			continue;
 		}
 		if((pid = fork()) == 0) {
 			// Child
