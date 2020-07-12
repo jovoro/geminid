@@ -33,8 +33,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
+#include <fcntl.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <sys/select.h>
 #include <arpa/inet.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -56,6 +58,7 @@ unsigned int vhostcount = 0;
 VHOST *vhost;
 GLOBALCONF *global;
 config_t cfg;
+fd_set read_fds;
 
 void prepConfig();
 void cleanupConfig();
@@ -107,6 +110,8 @@ void hupHandler(int signal) {
 
 void prepConfig() {
 	unsigned int i;
+	int flag;
+	int true = 1;
 	char accesslog_path[MAXBUF];
 	char errorlog_path[MAXBUF];
 	VHOST *tempvhp;
@@ -174,10 +179,29 @@ void prepConfig() {
 		fprintf(stderr, "Cannot set current (default) vhost\n");
 		exit(EXIT_FAILURE);
 	}
+
+
+	if(global->ipv6_enable)
+		sock = create_socket6(listen_port);
+	else
+		sock = create_socket(listen_port);
+
+	if (sock < 0) {
+		fprintf(stderr, "Cannot open socket on port %d\n", listen_port);
+		exit(EXIT_FAILURE);
+	}
+	
+	FD_ZERO(&read_fds);
+	FD_SET(sock, &read_fds);
+	flag = fcntl(sock, F_GETFL, 0);
+	flag |= O_NONBLOCK;
+	fcntl(sock, F_SETFL, flag);
+	setsockopt(sock,SOL_SOCKET,SO_REUSEADDR,&true,sizeof(int));
 	free(vhostlist);
 }
 
 void cleanupConfig() {
+	close(sock);
 	destroy_vhost(vhost, vhostcount);	
 	free(global);
 	config_destroy(&cfg);
@@ -185,7 +209,6 @@ void cleanupConfig() {
 
 int main(int argc, char **argv) {
 	unsigned int i;
-	int true = 1;
 	int pid;
 	int client;
 	int opt;
@@ -219,32 +242,35 @@ int main(int argc, char **argv) {
 	if(strncmp(configpath, "", MAXBUF) == 0)
 		usage(argv[0]);
 
-/*	signal(SIGINT, intHandler); */
+	signal(SIGINT, intHandler);
 	signal(SIGHUP, hupHandler);
 	signal(SIGCHLD, SIG_IGN);
 	prepConfig();
 	init_openssl();
 
-	if(global->ipv6_enable)
-		sock = create_socket6(listen_port);
-	else
-		sock = create_socket(listen_port);
-	
-	setsockopt(sock,SOL_SOCKET,SO_REUSEADDR,&true,sizeof(int));
-
-
 	
 	while(keepRunning) {
-		if(global->ipv6_enable) {
-			len = sizeof(addr6);
-			client = accept(sock, (struct sockaddr*)&addr6, &len); } else {
-			len = sizeof(addr);
-			client = accept(sock, (struct sockaddr*)&addr, &len);
+		if(select(FD_SETSIZE, &read_fds, NULL, NULL, NULL) < 0) {
+			perror("select");
 		}
-		if (client < 0) {
-			perror("Unable to accept");
+
+		if(FD_ISSET(sock, &read_fds)) {
+			if(global->ipv6_enable) {
+				len = sizeof(addr6);
+				client = accept(sock, (struct sockaddr*)&addr6, &len);
+			} else {
+				len = sizeof(addr);
+				client = accept(sock, (struct sockaddr*)&addr, &len);
+			}
+
+			if (client < 0) {
+				perror("Unable to accept");
+				continue;
+			}
+		} else {
 			continue;
 		}
+
 		if((pid = fork()) == 0) {
 			// Child
 			close(sock);
