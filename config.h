@@ -27,6 +27,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#define MAX_CONFIG_PATH 256
+
 typedef struct {
 	const char *serverroot;
 	const char *logdir;
@@ -34,6 +36,18 @@ typedef struct {
 	const char *loglocaltime;
 	const char *logtimeformat;
 } GLOBALCONF;
+
+typedef struct {
+	const char *path;
+	int secure;
+	int fingerprintcount;
+	const char **fingerprint;
+} ACCESSCONF;
+
+typedef struct {
+	unsigned int count;
+	ACCESSCONF *ace;
+} ACCESSLIST;
 
 typedef struct {
 	const char *name;
@@ -44,6 +58,7 @@ typedef struct {
 	const char *key;
 	const char *index;
 	const char *certloc;
+	ACCESSLIST *accesslist;
 } VHOSTCONF;
 
 typedef struct {

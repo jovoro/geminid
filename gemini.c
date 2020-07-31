@@ -105,7 +105,7 @@ int handle_request(SSL *ssl, char *document_root, VHOST *vhost) {
 	int reqlen = 0;
 	int reslen = 0;
 	int mimelen = 0;
-	int i;
+	int i, j;
 	char tmpbuf[MAXBUF];
 	char reqbuf[MAXBUF];
 	char *resbuf;
@@ -115,8 +115,11 @@ int handle_request(SSL *ssl, char *document_root, VHOST *vhost) {
 	char defdocpath[MAXBUF];
 	char localpath[MAXBUF];
 	char mime[MAXBUF];
+	unsigned char fp[EVP_MAX_MD_SIZE];
+	int fpsiz;
 	struct stat statbuf;
 	struct stat defdocstatbuf;
+	const EVP_MD *digest = EVP_get_digestbyname("sha1");
 	URL requrl;
 	X509 *pcert;
 
@@ -187,7 +190,14 @@ int handle_request(SSL *ssl, char *document_root, VHOST *vhost) {
 		/* Request client certificates */
 		pcert = SSL_get_peer_certificate(ssl);
 		if(pcert != NULL) {
-			fprintf(stderr, "Client certificate:\nSubject: %s\n", X509_NAME_oneline(X509_get_subject_name(pcert), 0, 0));
+			fprintf(stderr, "Client certificate:\nSubject: %s\nDigest: ", X509_NAME_oneline(X509_get_subject_name(pcert), 0, 0));
+			if(X509_digest(pcert, digest, fp, &fpsiz)) {
+				for (j=0; j<fpsiz; j++) {
+					fprintf(stderr,"%02X%c", fp[j], (j+1 == fpsiz) ?'\n':':');
+				}
+			} else {
+				fprintf(stderr, "Failed to calculate digest\n");
+			}
 			free(pcert);
 		} else {
 			write_gemini_response(ssl, STATUS_CERT, 0, "Client certificate required", 27, "", 0);
