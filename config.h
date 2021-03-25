@@ -53,5 +53,5 @@ typedef struct {
 	VHOSTCONF *vhost;
 } VHOSTLIST;
 
-int init_geminid_config(char *configpath, config_t *cfg, GLOBALCONF **global, VHOSTLIST **vhostlist);
-int testprintconfig(char *configpath);
+int init_geminid_config(const char *configpath, config_t *cfg, GLOBALCONF **global, VHOSTLIST **vhostlist);
+int testprintconfig(const char *configpath);

@@ -101,7 +101,7 @@ VHOSTLIST *new_vhostlist(config_t *cfg) {
 	return vhostlist;
 }
 
-int init_geminid_config(char *configpath, config_t *cfg, GLOBALCONF **global, VHOSTLIST **vhostlist) {
+int init_geminid_config(const char *configpath, config_t *cfg, GLOBALCONF **global, VHOSTLIST **vhostlist) {
 	config_init(cfg);
 	if(! config_read_file(cfg, configpath)) {
 		fprintf(stderr, "%s:%d - %s\n", config_error_file(cfg),
@@ -118,7 +118,7 @@ int init_geminid_config(char *configpath, config_t *cfg, GLOBALCONF **global, VH
 }
 
 
-int testprintconfig(char *configpath) {
+int testprintconfig(const char *configpath) {
 	GLOBALCONF *global;
 	VHOSTLIST *vhostlist;
 	VHOSTCONF *firstvhost;
