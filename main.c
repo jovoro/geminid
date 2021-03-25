@@ -103,7 +103,8 @@ int main(int argc, char **argv) {
 	struct sockaddr_in6 addr6;
 	SSL_CTX *ctx;
 	char tmpbuf[MAXBUF];
-	char configpath[MAXBUF];
+	const char *configpath = NULL;
+	int run_tests = 0;
 	char accesslog_path[MAXBUF];
 	char errorlog_path[MAXBUF];
 	GLOBALCONF *global;
@@ -117,26 +118,25 @@ int main(int argc, char **argv) {
 	while((opt = getopt(argc, argv, "c:t")) != -1) {
 		switch(opt) {
 			case 'c':
-				if(strlen(optarg) < 1)
-					usage(argv[0]);
-
-				snprintf(configpath, MAXBUF-1, "%s", optarg);
+				configpath = optarg;
 				break;
 
 			case 't':
-				if(strncmp(configpath, "", MAXBUF) == 0)
-					usage(argv[0]);
-
-				testprintconfig(configpath);
-				exit(EXIT_SUCCESS);
+				run_tests = 1;
+				break;
 
 			default:
 				usage(argv[0]);
 		}
 	}
 
-	if(strncmp(configpath, "", MAXBUF) == 0)
+	if(configpath == NULL || strcmp(configpath, "") == 0)
 		usage(argv[0]);
+
+	if (run_tests) {
+		testprintconfig(configpath);
+		exit(EXIT_SUCCESS);
+	}
 
 /*	signal(SIGINT, intHandler); */
 
