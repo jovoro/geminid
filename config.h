@@ -27,6 +27,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <libconfig.h>
+
 typedef struct {
 	const char *serverroot;
 	const char *logdir;

@@ -30,23 +30,18 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
-#include <limits.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <openssl/ssl.h>
-#include <openssl/err.h>
-#include <sys/types.h>
+#include <openssl/ossl_typ.h>
+#include <openssl/ssl3.h>
 #ifdef __linux__
 #include <stdlib.h>
 #else
 #include <sys/malloc.h>
 #endif /* __linux__ */
-#include <sys/stat.h>
-#include <magic.h>
 #include "gemini.h"
+
+#include <sys/stat.h>
+
 #include "util.h"
-#include "mime.h"
 #include "file.h"
 #include "log.h"
 #include "url.h"
