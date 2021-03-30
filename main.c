@@ -140,7 +140,7 @@ int main(int argc, char **argv) {
 /*	signal(SIGINT, intHandler); */
 
 	/* Prepare configuration */
-	if(init_geminid_config(configpath, &cfg, &global, &vhostlist) < 1) {
+	if (init_geminid_config(configpath, &cfg, &global, &vhostlist) < 0) {
 		config_destroy(&cfg);
 		fprintf(stderr, "Cannot parse config.\n");
 		exit(EXIT_FAILURE);

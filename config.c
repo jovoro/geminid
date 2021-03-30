@@ -133,10 +133,13 @@ int init_geminid_config(const char *configpath, config_t *cfg, GLOBALCONF **glob
 
 	*global = new_globalconf(cfg);
 	*vhostlist = new_vhostlist(cfg);
-	if(global == NULL)
-		return -1;
 
-	return 1;
+	if(*global != NULL && *vhostlist != NULL)
+		return 0;
+
+	free(*global);
+	free(*vhostlist);
+	return -1;
 }
 
 
@@ -145,7 +148,7 @@ int testprintconfig(const char *configpath) {
 	VHOSTLIST *vhostlist;
 	config_t cfg;
 
-	if(init_geminid_config(configpath, &cfg, &global, &vhostlist) < 1) {
+	if (init_geminid_config(configpath, &cfg, &global, &vhostlist) < 0) {
 		config_destroy(&cfg);
 		exit(EXIT_FAILURE);
 	}
