@@ -96,7 +96,6 @@ int main(int argc, char **argv) {
 	int sock;
 	int pid;
 	int client;
-	int true = 1;
 	int opt;
 	uint len;
 	struct sockaddr_in addr;
@@ -207,7 +206,7 @@ int main(int argc, char **argv) {
 	else
 		sock = create_socket(listen_port);
 	
-	setsockopt(sock,SOL_SOCKET,SO_REUSEADDR,&true,sizeof(int));
+	setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &(int){ 1 }, sizeof(int));
 
 	/* Auto-reap zombies for now.
 	 * Maybe refine that with a real signal handler later 
