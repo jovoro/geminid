@@ -146,7 +146,7 @@ int main(int argc, char **argv) {
 		exit(EXIT_FAILURE);
 	}
 
-	if(global == NULL || global == NULL) {
+	if(global == NULL) {
 		config_destroy(&cfg);
 		fprintf(stderr, "Cannot parse config.\n");
 		exit(EXIT_FAILURE);
