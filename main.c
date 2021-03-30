@@ -163,11 +163,15 @@ int main(int argc, char **argv) {
 	/* Global configuration */
 	strncpy(server_root, global->serverroot, MAXBUF-1);
 	listen_port = global->port;
-	snprintf(log_time_format, MAXBUF-1, "%s", global->logtimeformat);
-	if(strncmp(global->loglocaltime, "yes", 3) == 0)
-		log_local_time = 1;
-	else
-		log_local_time = 0;
+
+	if (log_setup(&(LOGCONFIG){
+			.use_local_time = strcmp(global->loglocaltime, "yes"),
+			.time_format = global->logtimeformat
+		})
+	) {
+		fprintf(stderr, "Error setting up logging system\n");
+		exit(EXIT_FAILURE);
+	}
 
 	/* Configuration per virtual host */
 	vhostcount = vhostlist->count;

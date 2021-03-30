@@ -33,18 +33,25 @@
 #include "gemini.h"
 #include "log.h"
 
+static LOGCONFIG g_logconfig;
+
+int log_setup(const LOGCONFIG *logconfig) {
+	g_logconfig = *logconfig;
+	return 0;
+}
+
 int log_access(FILE *lf, char *reqbuf, char *host, char *path, int status_major, int status_minor, long bytes, char *cc_issuer, char *cc_subject) {
 	char timebuf[32];
 	struct tm *sTm;
 	time_t now;
 
 	now = time(0);
-	if(log_local_time < 1)
+	if(g_logconfig.use_local_time < 1)
 		sTm = gmtime(&now);
 	else
 		sTm = localtime(&now);
 
-	strftime(timebuf, sizeof(timebuf), log_time_format, sTm);
+	strftime(timebuf, sizeof(timebuf), g_logconfig.time_format, sTm);
 	return fprintf(lf, "%s %s %s %s %d%d %ld %s %s\n", timebuf, reqbuf, host, path, status_major, status_minor, bytes, cc_issuer, cc_subject);
 }
 
@@ -54,12 +61,12 @@ int log_error(FILE *lf, char *logbuf) {
 	time_t now;
 
 	now = time(0);
-	if(log_local_time < 1)
+	if (g_logconfig.use_local_time < 1)
 		sTm = gmtime(&now);
 	else
 		sTm = localtime(&now);
 
-	strftime(timebuf, sizeof(timebuf), log_time_format, sTm);
+	strftime(timebuf, sizeof(timebuf), g_logconfig.time_format, sTm);
 	return fprintf(lf, "%s %s\n", timebuf, logbuf);
 }
 

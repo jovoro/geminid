@@ -27,6 +27,15 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <stdbool.h>
+
+typedef struct {
+	bool use_local_time;
+	const char *time_format;
+} LOGCONFIG;
+
+int log_setup(const LOGCONFIG *);
+
 int log_access(FILE *lf, char *reqbuf, char *host, char *path, int status_major, int status_minor, long bytes, char *cc_issuer, char *cc_subject);
 int log_error(FILE *lf, char *logbuf);
 FILE *open_log(const char *path);
