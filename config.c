@@ -142,24 +142,40 @@ int init_geminid_config(const char *configpath, config_t *cfg, GLOBALCONF **glob
 int testprintconfig(const char *configpath) {
 	GLOBALCONF *global;
 	VHOSTLIST *vhostlist;
-	VHOSTCONF *firstvhost;
 	config_t cfg;
-	unsigned int i;
 
 	if(init_geminid_config(configpath, &cfg, &global, &vhostlist) < 1) {
 		config_destroy(&cfg);
 		exit(EXIT_FAILURE);
 	}
 
-	firstvhost = vhostlist->vhost;	
-	fprintf(stderr, "Global config:\n-------------\nserverroot: %s\nlogdir: %s\nport: %d\n\n", global->serverroot, global->logdir, global->port);
-	for(i=0; i<vhostlist->count; i++) {
-		fprintf(stderr, "vHost %d:\n------\nname: %s\ndocroot: %s\naccesslog: %s\nerrorlog: %s\ncert: %s\nkey: %s\nindex: %s\n\n", i, vhostlist->vhost->name, vhostlist->vhost->docroot, vhostlist->vhost->accesslog, vhostlist->vhost->errorlog, vhostlist->vhost->cert, vhostlist->vhost->key, vhostlist->vhost->index);
-		vhostlist->vhost++;
+	fputs("Global config:\n-------------\n", stderr);
+	fprintf(stderr, "serverroot: %s\n", global->serverroot);
+	fprintf(stderr, "logdir: %s\n", global->logdir);
+	fprintf(stderr, "logtimeformat: %s\n", global->logtimeformat);
+	fprintf(stderr, "loglocaltime: %s\n", global->loglocaltime ? "true" : "false");
+	fprintf(stderr, "ipv6_enable: %s\n", global->ipv6_enable ? "true" : "false");
+	fprintf(stderr, "port: %hu\n",  global->port);
+	fputc('\n', stderr);
+
+	for(unsigned i = 0; i < vhostlist->count; i++) {
+		const VHOSTCONF *vhost;
+
+		vhost = &vhostlist->vhost[i];
+
+		fprintf(stderr, "vHost %u:\n------\n", i);
+		fprintf(stderr, "name: %s\n", vhost->name);
+		fprintf(stderr, "docroot: %s\n", vhost->docroot);
+		fprintf(stderr, "accesslog: %s\n", vhost->accesslog);
+		fprintf(stderr, "errorlog: %s\n", vhost->errorlog);
+		fprintf(stderr, "cert: %s\n", vhost->cert);
+		fprintf(stderr, "key: %s\n", vhost->key);
+		fprintf(stderr, "index: %s\n", vhost->index);
+		fputc('\n', stderr);
 	}
 
 	free(global);
-	free(firstvhost);
+	free(vhostlist->vhost);
 	free(vhostlist);
 	config_destroy(&cfg);
 	return(EXIT_SUCCESS);
