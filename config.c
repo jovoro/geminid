@@ -34,30 +34,51 @@
 #endif /* ! __linux__ */
 #include <libconfig.h>
 #include "config.h"
+#include <limits.h>
 
 GLOBALCONF *new_globalconf(config_t *cfg) {
 	config_setting_t *setting;
 	GLOBALCONF *global;
 
-	global = calloc(1, sizeof(*global));
+	global = malloc(sizeof(*global));
 
-	if(global == NULL)
+	if(global == NULL) {
+		perror("malloc");
 		return NULL;
-
-	
-	setting = config_lookup(cfg, "global");
-	if(setting != NULL) {
-		if(!(config_setting_lookup_string(setting, "serverroot", &(global->serverroot))
-		  && config_setting_lookup_string(setting, "logdir", &(global->logdir))
-		  && config_setting_lookup_string(setting, "loglocaltime", &(global->loglocaltime))
-		  && config_setting_lookup_string(setting, "logtimeformat", &(global->logtimeformat))
-		  && config_setting_lookup_int(setting, "port", &(global->port)))) {
-			fprintf(stderr, "Failed parsing config\n");
-			return NULL;
-		}
-		if(!config_setting_lookup_bool(setting, "ipv6_enable", &(global->ipv6_enable)))
-			global->ipv6_enable = 0;
 	}
+
+	*global = (GLOBALCONF){
+		.serverroot = "/srv/geminid",
+		.logdir = "/var/log/geminid",
+		.port = 1965,
+		.loglocaltime = true,
+		.logtimeformat = "[%d/%b/%Y:%H:%M:%S %z]",
+		.ipv6_enable = true,
+	};
+
+	setting = config_lookup(cfg, "global");
+	if (setting != NULL) {
+		int aux;
+
+		(void)config_setting_lookup_string(setting, "serverroot", &global->serverroot);
+		(void)config_setting_lookup_string(setting, "logdir", &global->logdir);
+
+		if (config_setting_lookup_int(setting, "port", &aux)) {
+			if (aux < 0 || aux > SHRT_MAX)
+				fprintf(stderr, "global.port: Invalid port number %d\n", aux);
+			else
+				global->port = aux;
+		}
+
+		if (config_setting_lookup_bool(setting, "loglocaltime", &aux))
+			global->loglocaltime = !!aux;
+
+		(void)config_setting_lookup_string(setting, "logtimeformat", &global->logtimeformat);
+
+		if (config_setting_lookup_bool(setting, "ipv6_enable", &aux))
+			global->ipv6_enable = !!aux;
+	}
+
 	return global;
 }
 

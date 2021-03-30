@@ -164,11 +164,7 @@ int main(int argc, char **argv) {
 	strncpy(server_root, global->serverroot, MAXBUF-1);
 	listen_port = global->port;
 
-	if (log_setup(&(LOGCONFIG){
-			.use_local_time = strcmp(global->loglocaltime, "yes"),
-			.time_format = global->logtimeformat
-		})
-	) {
+	if (log_setup(&(LOGCONFIG){.use_local_time = global->loglocaltime, .time_format = global->logtimeformat})) {
 		fprintf(stderr, "Error setting up logging system\n");
 		exit(EXIT_FAILURE);
 	}

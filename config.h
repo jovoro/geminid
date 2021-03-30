@@ -27,15 +27,16 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <stdbool.h>
 #include <libconfig.h>
 
 typedef struct {
 	const char *serverroot;
 	const char *logdir;
-	int port;
-	const char *loglocaltime;
 	const char *logtimeformat;
-	int ipv6_enable;
+	bool loglocaltime;
+	bool ipv6_enable;
+	unsigned short port;
 } GLOBALCONF;
 
 typedef struct {
