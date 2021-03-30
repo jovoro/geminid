@@ -115,6 +115,7 @@ VHOSTLIST *new_vhostlist(config_t *cfg) {
 		vhostlist->vhost = firstvhost;
 	} else {
 		fprintf(stderr, "no vhost definitions found.\n");
+		free(vhostlist);
 		return NULL;
 	}
 
