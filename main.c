@@ -55,29 +55,29 @@ unsigned int vhostcount = 0;
 
 void initWorker(int client) {
 	char document_root[MAXBUF];
-        SSL *ssl;
+	SSL *ssl;
 	VHOST *select_vhost;
 
 	SSL_CTX_set_tlsext_servername_callback(vhost->ctx, sni_cb);
-        ssl = SSL_new(vhost->ctx); /* Use first vhost as default context */
-        SSL_set_fd(ssl, client);
+	ssl = SSL_new(vhost->ctx); /* Use first vhost as default context */
+	SSL_set_fd(ssl, client);
 
-        if (SSL_accept(ssl) <= 0) {
+	if (SSL_accept(ssl) <= 0) {
 		ERR_print_errors_fp(stderr);
-        } else {
+	} else {
 		select_vhost = get_current_vhost();
 		if(select_vhost == NULL) {
 			fprintf(stderr, "Cannot get current vhost\n");
 			return;
 		}
-		
+
 		snprintf(document_root, MAXBUF-1, "%s/%s", server_root, select_vhost->docroot);
 		handle_request(ssl, document_root, select_vhost->defaultdocument, select_vhost->accesslog, select_vhost->errorlog);
-        }
+	}
 
-        SSL_shutdown(ssl);
-        SSL_free(ssl);
-        close(client);
+	SSL_shutdown(ssl);
+	SSL_free(ssl);
+	close(client);
 }
 
 void usage(char *progname) {
