@@ -103,17 +103,3 @@ void log_error(FILE *lf, const char *format, ...) {
 
 	fprintf(lf, "%s %s\n", current_time(timebuf, sizeof(timebuf)), logbuf);
 }
-
-FILE *open_log(const char *path) {
-	if(strncmp(path, "-", 1) == 0) 
-		return stderr;
-
-	return fopen(path, "a");
-}
-
-int close_log(FILE *lf) {
-	if(lf == stderr)
-		return 0;
-
-	return fclose(lf);
-}
