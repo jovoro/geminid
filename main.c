@@ -45,8 +45,6 @@
 #include "config.h"
 #include "vhost.h"
 
-char log_time_format[MAXBUF];
-short log_local_time;
 static volatile int keepRunning = 1;
 VHOST *vhost;
 unsigned int vhostcount = 0;
