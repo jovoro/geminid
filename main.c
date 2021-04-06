@@ -45,7 +45,6 @@
 #include "config.h"
 #include "vhost.h"
 
-int listen_port;
 char server_root[MAXBUF];
 char log_time_format[MAXBUF];
 short log_local_time;
@@ -159,7 +158,6 @@ int main(int argc, char **argv) {
 
 	/* Global configuration */
 	strncpy(server_root, global->serverroot, MAXBUF-1);
-	listen_port = global->port;
 
 	if (log_setup(&(LOGCONFIG){.use_local_time = global->loglocaltime, .time_format = global->logtimeformat})) {
 		fprintf(stderr, "Error setting up logging system\n");
@@ -199,9 +197,9 @@ int main(int argc, char **argv) {
 	}
 
 	if(global->ipv6_enable)
-		sock = create_socket6(listen_port);
+		sock = create_socket6(global->port);
 	else
-		sock = create_socket(listen_port);
+		sock = create_socket(global->port);
 	
 	setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &(int){ 1 }, sizeof(int));
 
