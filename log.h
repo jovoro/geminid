@@ -47,7 +47,8 @@ typedef struct {
 } LOG_ACCESS_ENTRY;
 
 void log_access(FILE *lf, const LOG_ACCESS_ENTRY *);
-int log_error(FILE *lf, char *logbuf);
+void log_error(FILE *lf, const char *format, ...) __attribute__((format(printf, 2, 3)));
+
 FILE *open_log(const char *path);
 int close_log(FILE *lf);
 

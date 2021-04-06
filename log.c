@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <stdarg.h>
 
 #include "log.h"
 
@@ -91,10 +92,16 @@ void log_access(FILE *lf, const LOG_ACCESS_ENTRY *entry) {
 	);
 }
 
-int log_error(FILE *lf, char *logbuf) {
+void log_error(FILE *lf, const char *format, ...) {
+	char logbuf[4096];
 	char timebuf[32];
+	va_list ap;
 
-	return fprintf(lf, "%s %s\n", current_time(timebuf, sizeof(timebuf)), logbuf);
+	va_start(ap, format);
+	vsnprintf(logbuf, sizeof(logbuf), format, ap);
+	va_end(ap);
+
+	fprintf(lf, "%s %s\n", current_time(timebuf, sizeof(timebuf)), logbuf);
 }
 
 FILE *open_log(const char *path) {
