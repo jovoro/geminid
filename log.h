@@ -36,7 +36,17 @@ typedef struct {
 
 int log_setup(const LOGCONFIG *);
 
-int log_access(FILE *lf, char *reqbuf, char *host, char *path, int status_major, int status_minor, long bytes, char *cc_issuer, char *cc_subject);
+typedef struct {
+	const char *request;
+	const char *host;
+	const char *path;
+	struct {
+		int major, minor;
+	} status;
+	long response_length;
+} LOG_ACCESS_ENTRY;
+
+void log_access(FILE *lf, const LOG_ACCESS_ENTRY *);
 int log_error(FILE *lf, char *logbuf);
 FILE *open_log(const char *path);
 int close_log(FILE *lf);

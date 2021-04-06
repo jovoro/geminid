@@ -72,19 +72,22 @@ static const char *current_time(char *buffer, size_t buflen) {
 	return buffer;
 }
 
-int log_access(FILE *lf, char *reqbuf, char *host, char *path, int status_major, int status_minor, long bytes, char *cc_issuer, char *cc_subject) {
+void log_access(FILE *lf, const LOG_ACCESS_ENTRY *entry) {
 	char timebuf[32];
 
-	return fprintf(lf, "%s %s %s %s %d%d %ld %s %s\n",
+	// NOTE 2021-03-29 dacav@fastmail.com:
+	//  The last two fields are used to be the expansion of two
+	//  Ttring variables named `cc_issuer` and `cc_subject`.  All
+	//  invocations of `log_access` in the original code passed the "-"
+	//  string for both.
+	fprintf(lf, "%s %s %s %s %d%d %ld - -\n",
 		current_time(timebuf, sizeof(timebuf)),
-		reqbuf,
-		host,
-		path,
-		status_major,
-		status_minor,
-		bytes,
-		cc_issuer,
-		cc_subject
+		entry->request ?: "-",
+		entry->host ?: "",
+		entry->path ?: "",
+		entry->status.major,
+		entry->status.minor,
+		entry->response_length
 	);
 }
 
