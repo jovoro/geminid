@@ -95,8 +95,6 @@ int log_error(FILE *lf, char *logbuf) {
 }
 
 FILE *open_log(const char *path) {
-	FILE *lf;
-
 	if(strncmp(path, "-", 1) == 0) 
 		return stderr;
 

@@ -54,7 +54,6 @@ VHOST *vhost;
 unsigned int vhostcount = 0;
 
 void initWorker(int client) {
-	int i;
 	char document_root[MAXBUF];
         SSL *ssl;
 	VHOST *select_vhost;
@@ -100,8 +99,6 @@ int main(int argc, char **argv) {
 	uint len;
 	struct sockaddr_in addr;
 	struct sockaddr_in6 addr6;
-	SSL_CTX *ctx;
-	char tmpbuf[MAXBUF];
 	const char *configpath = NULL;
 	int run_tests = 0;
 	char accesslog_path[MAXBUF];
