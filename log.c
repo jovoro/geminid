@@ -33,41 +33,65 @@
 #include "gemini.h"
 #include "log.h"
 
-static LOGCONFIG g_logconfig;
+static struct {
+	const char *time_format;
+	struct tm * (*broken_down)(const time_t *, struct tm *);
+} g_logconfig = {
+	.time_format = "[%d/%b/%Y:%H:%M:%S %z]",
+	.broken_down = gmtime_r,
+};
 
 int log_setup(const LOGCONFIG *logconfig) {
-	g_logconfig = *logconfig;
+	g_logconfig.time_format = logconfig->time_format;
+	g_logconfig.broken_down = logconfig->use_local_time
+							? localtime_r
+							: gmtime_r
+							;
 	return 0;
+}
+
+static const char *current_time(char *buffer, size_t buflen) {
+	struct tm tm;
+	time_t t;
+
+	if (time(&t) == -1) {
+		perror("time");
+		return "???";
+	}
+
+	if (g_logconfig.broken_down(&t, &tm) == NULL) {
+		perror("gmtime_r / localtime_r");
+		return "???";
+	}
+
+	if (strftime(buffer, buflen, g_logconfig.time_format, &tm) == 0) {
+		fprintf(stderr, "stftime failed to format time");
+		return "???";
+	}
+
+	return buffer;
 }
 
 int log_access(FILE *lf, char *reqbuf, char *host, char *path, int status_major, int status_minor, long bytes, char *cc_issuer, char *cc_subject) {
 	char timebuf[32];
-	struct tm *sTm;
-	time_t now;
 
-	now = time(0);
-	if(g_logconfig.use_local_time < 1)
-		sTm = gmtime(&now);
-	else
-		sTm = localtime(&now);
-
-	strftime(timebuf, sizeof(timebuf), g_logconfig.time_format, sTm);
-	return fprintf(lf, "%s %s %s %s %d%d %ld %s %s\n", timebuf, reqbuf, host, path, status_major, status_minor, bytes, cc_issuer, cc_subject);
+	return fprintf(lf, "%s %s %s %s %d%d %ld %s %s\n",
+		current_time(timebuf, sizeof(timebuf)),
+		reqbuf,
+		host,
+		path,
+		status_major,
+		status_minor,
+		bytes,
+		cc_issuer,
+		cc_subject
+	);
 }
 
 int log_error(FILE *lf, char *logbuf) {
 	char timebuf[32];
-	struct tm *sTm;
-	time_t now;
 
-	now = time(0);
-	if (g_logconfig.use_local_time < 1)
-		sTm = gmtime(&now);
-	else
-		sTm = localtime(&now);
-
-	strftime(timebuf, sizeof(timebuf), g_logconfig.time_format, sTm);
-	return fprintf(lf, "%s %s\n", timebuf, logbuf);
+	return fprintf(lf, "%s %s\n", current_time(timebuf, sizeof(timebuf)), logbuf);
 }
 
 FILE *open_log(const char *path) {
