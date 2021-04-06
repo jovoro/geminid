@@ -104,7 +104,6 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 	int reslen = 0;
 	int mimelen = 0;
 	int i;
-	char tmpbuf[MAXBUF];
 	char reqbuf[MAXBUF];
 	char *resbuf;
 	char *pathbuf;
@@ -130,8 +129,7 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 			.status.major = STATUS_PERMFAIL,
 			.status.minor = 9,
 		});
-		snprintf(tmpbuf, MAXBUF, "Error: Request too long\n");
-		log_error(error_log, tmpbuf);
+		log_error(error_log, "Error: Request too long\n");
 		return -1;
 	}
 
@@ -144,11 +142,10 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 			.status.minor = 9,
 		});
 		if(i == -2)
-			snprintf(tmpbuf, MAXBUF, "Error: Userinfo detected in URL request\n");
+			log_error(error_log, "Error: Userinfo detected in URL request\n");
 		else
-			snprintf(tmpbuf, MAXBUF, "Error: Could not parse request %s\n", reqbuf);
+			log_error(error_log, "Error: Could not parse request %s\n", reqbuf);
 
-		log_error(error_log, tmpbuf);
 		return -1;
 	}
 
@@ -160,8 +157,7 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 			.status.major = STATUS_TEMPFAIL,
 			.status.minor = 1
 		});
-		snprintf(tmpbuf, MAXBUF, "Error: Could not handle request for %s\n", reqbuf);
-		log_error(error_log, tmpbuf);
+		log_error(error_log, "Error: Could not handle request for %s\n", reqbuf);
 		return -1;
 	}
 	
@@ -179,8 +175,7 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 			.status.major = STATUS_PERMFAIL,
 			.status.minor = 1,
 		});
-		snprintf(tmpbuf, MAXBUF, "Error: Could not get realpath for %s\n", reqbuf);
-		log_error(error_log, tmpbuf);
+		log_error(error_log, "Error: Could not get realpath for %s\n", reqbuf);
 		return -1;
 	}
 	
@@ -199,8 +194,7 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 				.status.major = STATUS_TEMPFAIL,
 				.status.minor = 1,
 			});
-			snprintf(tmpbuf, MAXBUF, "Error: Could not handle request for %s\n", reqbuf);
-			log_error(error_log, tmpbuf);
+			log_error(error_log, "Error: Could not handle request for %s\n", reqbuf);
 			return -1;
 		}
 	}
