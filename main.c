@@ -45,14 +45,13 @@
 #include "config.h"
 #include "vhost.h"
 
-char server_root[MAXBUF];
 char log_time_format[MAXBUF];
 short log_local_time;
 static volatile int keepRunning = 1;
 VHOST *vhost;
 unsigned int vhostcount = 0;
 
-void initWorker(int client) {
+void initWorker(int client, const char *server_root) {
 	char document_root[MAXBUF];
 	SSL *ssl;
 	VHOST *select_vhost;
@@ -157,8 +156,6 @@ int main(int argc, char **argv) {
 	init_openssl();
 
 	/* Global configuration */
-	strncpy(server_root, global->serverroot, MAXBUF-1);
-
 	if (log_setup(&(LOGCONFIG){.use_local_time = global->loglocaltime, .time_format = global->logtimeformat})) {
 		fprintf(stderr, "Error setting up logging system\n");
 		exit(EXIT_FAILURE);
@@ -186,7 +183,7 @@ int main(int argc, char **argv) {
 		free(tempvhp);
 			
 		/* Print configuration settings */
-		fprintf(stderr, "serverroot: %s\nlogdir: %s\nhostname: %s\naccess_log_path: %s\nerror_log_path: %s\ndefault_document: %s\nlisten_port: %d\ndocument_root: %s\npublic key: %s\nprivate key: %s\n\n\n", server_root, global->logdir, vhcp->name, accesslog_path, errorlog_path, vhcp->index, global->port, vhcp->docroot, vhcp->cert, vhcp->key);
+		fprintf(stderr, "serverroot: %s\nlogdir: %s\nhostname: %s\naccess_log_path: %s\nerror_log_path: %s\ndefault_document: %s\nlisten_port: %d\ndocument_root: %s\npublic key: %s\nprivate key: %s\n\n\n", global->serverroot, global->logdir, vhcp->name, accesslog_path, errorlog_path, vhcp->index, global->port, vhcp->docroot, vhcp->cert, vhcp->key);
 		vhcp++;
 		vhp++;
 	}
@@ -224,7 +221,7 @@ int main(int argc, char **argv) {
 		if((pid = fork()) == 0) {
 			// Child
 			close(sock);
-			initWorker(client);
+			initWorker(client, global->serverroot);
 			exit(0);
 		} else if (pid > 0) {
 			// Parent
