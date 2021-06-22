@@ -27,8 +27,24 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-int log_access(FILE *lf, char *reqbuf, char *host, char *path, int status_major, int status_minor, long bytes, char *cc_issuer, char *cc_subject);
-int log_error(FILE *lf, char *logbuf);
-FILE *open_log(const char *path);
-int close_log(FILE *lf);
+#include <stdbool.h>
 
+typedef struct {
+	bool use_local_time;
+	const char *time_format;
+} LOGCONFIG;
+
+int log_setup(const LOGCONFIG *);
+
+typedef struct {
+	const char *request;
+	const char *host;
+	const char *path;
+	struct {
+		int major, minor;
+	} status;
+	long response_length;
+} LOG_ACCESS_ENTRY;
+
+void log_access(FILE *lf, const LOG_ACCESS_ENTRY *);
+void log_error(FILE *lf, const char *format, ...) __attribute__((format(printf, 2, 3)));

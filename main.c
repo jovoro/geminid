@@ -46,16 +46,11 @@
 #include "config.h"
 
 
-int listen_port;
-char server_root[MAXBUF];
-char log_time_format[MAXBUF];
-short log_local_time;
 static volatile int keepRunning = 1;
 VHOST *vhost;
 unsigned int vhostcount = 0;
 
-void initWorker(int client) {
-	int i;
+void initWorker(int client, const char *server_root) {
 	char document_root[MAXBUF];
 	SSL *ssl;
 	VHOST *select_vhost;
@@ -72,9 +67,9 @@ void initWorker(int client) {
 			fprintf(stderr, "Cannot get current vhost\n");
 			return;
 		}
-		
+
 		snprintf(document_root, MAXBUF-1, "%s/%s", server_root, select_vhost->docroot);
-		handle_request(ssl, document_root, select_vhost);
+		handle_request(ssl, document_root, select_vhost->defaultdocument, select_vhost->accesslog, select_vhost->errorlog);
 	}
 
 	SSL_shutdown(ssl);
@@ -97,13 +92,12 @@ int main(int argc, char **argv) {
 	int sock;
 	int pid;
 	int client;
-	int true = 1;
 	int opt;
 	uint len;
 	struct sockaddr_in addr;
-	SSL_CTX *ctx;
-	char tmpbuf[MAXBUF];
-	char configpath[MAXBUF];
+	struct sockaddr_in6 addr6;
+	const char *configpath = NULL;
+	int run_tests = 0;
 	char accesslog_path[MAXBUF];
 	char errorlog_path[MAXBUF];
 	GLOBALCONF *global;
@@ -117,37 +111,36 @@ int main(int argc, char **argv) {
 	while((opt = getopt(argc, argv, "c:t")) != -1) {
 		switch(opt) {
 			case 'c':
-				if(strlen(optarg) < 1)
-					usage(argv[0]);
-
-				snprintf(configpath, MAXBUF-1, "%s", optarg);
+				configpath = optarg;
 				break;
 
 			case 't':
-				if(strncmp(configpath, "", MAXBUF) == 0)
-					usage(argv[0]);
-
-				testprintconfig(configpath);
-				exit(EXIT_SUCCESS);
+				run_tests = 1;
+				break;
 
 			default:
 				usage(argv[0]);
 		}
 	}
 
-	if(strncmp(configpath, "", MAXBUF) == 0)
+	if(configpath == NULL || strcmp(configpath, "") == 0)
 		usage(argv[0]);
+
+	if (run_tests) {
+		testprintconfig(configpath);
+		exit(EXIT_SUCCESS);
+	}
 
 /*	signal(SIGINT, intHandler); */
 
 	/* Prepare configuration */
-	if(init_geminid_config(configpath, &cfg, &global, &vhostlist) < 1) {
+	if (init_geminid_config(configpath, &cfg, &global, &vhostlist) < 0) {
 		config_destroy(&cfg);
 		fprintf(stderr, "Cannot parse config.\n");
 		exit(EXIT_FAILURE);
 	}
 
-	if(global == NULL || vhostlist == NULL) {
+	if(global == NULL) {
 		config_destroy(&cfg);
 		fprintf(stderr, "Cannot parse config.\n");
 		exit(EXIT_FAILURE);
@@ -162,13 +155,10 @@ int main(int argc, char **argv) {
 	init_openssl();
 
 	/* Global configuration */
-	strncpy(server_root, global->serverroot, MAXBUF-1);
-	listen_port = global->port;
-	snprintf(log_time_format, MAXBUF-1, "%s", global->logtimeformat);
-	if(strncmp(global->loglocaltime, "yes", 3) == 0)
-		log_local_time = 1;
-	else
-		log_local_time = 0;
+	if (log_setup(&(LOGCONFIG){.use_local_time = global->loglocaltime, .time_format = global->logtimeformat})) {
+		fprintf(stderr, "Error setting up logging system\n");
+		exit(EXIT_FAILURE);
+	}
 
 	/* Configuration per virtual host */
 	vhostcount = vhostlist->count;
@@ -192,7 +182,7 @@ int main(int argc, char **argv) {
 		free(tempvhp);
 			
 		/* Print configuration settings */
-		fprintf(stderr, "serverroot: %s\nlogdir: %s\nhostname: %s\naccess_log_path: %s\nerror_log_path: %s\ndefault_document: %s\nlisten_port: %d\ndocument_root: %s\npublic key: %s\nprivate key: %s\nclient certificate location: %s\n\n", server_root, global->logdir, vhcp->name, accesslog_path, errorlog_path, vhcp->index, global->port, vhcp->docroot, vhcp->cert, vhcp->key, vhcp->certloc);
+		fprintf(stderr, "serverroot: %s\nlogdir: %s\nhostname: %s\naccess_log_path: %s\nerror_log_path: %s\ndefault_document: %s\nlisten_port: %d\ndocument_root: %s\npublic key: %s\nprivate key: %s\nclient certificate location: %s\n\n", global->serverroot, global->logdir, vhcp->name, accesslog_path, errorlog_path, vhcp->index, global->port, vhcp->docroot, vhcp->cert, vhcp->key, vhcp->certloc);
 		vhcp++;
 		vhp++;
 	}
@@ -202,9 +192,12 @@ int main(int argc, char **argv) {
 		exit(EXIT_FAILURE);
 	}
 
-
-	sock = create_socket(listen_port);
-	setsockopt(sock,SOL_SOCKET,SO_REUSEADDR,&true,sizeof(int));
+	if(global->ipv6_enable)
+		sock = create_socket6(global->port);
+	else
+		sock = create_socket(global->port);
+	
+	setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &(int){ 1 }, sizeof(int));
 
 	/* Auto-reap zombies for now.
 	 * Maybe refine that with a real signal handler later 
@@ -213,16 +206,21 @@ int main(int argc, char **argv) {
 	signal(SIGCHLD, SIG_IGN);
 	
 	while(keepRunning) {
-		len = sizeof(addr);
-		client = accept(sock, (struct sockaddr*)&addr, &len);
+		if(global->ipv6_enable) {
+			len = sizeof(addr6);
+			client = accept(sock, (struct sockaddr*)&addr6, &len);
+		} else {
+			len = sizeof(addr);
+			client = accept(sock, (struct sockaddr*)&addr, &len);
+		}
 		if (client < 0) {
 			perror("Unable to accept");
-			exit(EXIT_FAILURE);
+			continue;
 		}
 		if((pid = fork()) == 0) {
 			// Child
 			close(sock);
-			initWorker(client);
+			initWorker(client, global->serverroot);
 			exit(0);
 		} else if (pid > 0) {
 			// Parent

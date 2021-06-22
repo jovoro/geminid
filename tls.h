@@ -27,6 +27,7 @@
  */
 
 int create_socket(int port);
+int create_socket6(int port);
 void init_openssl();
 void cleanup_openssl();
 SSL_CTX *create_context();

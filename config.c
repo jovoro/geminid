@@ -34,28 +34,51 @@
 #endif /* ! __linux__ */
 #include <libconfig.h>
 #include "config.h"
+#include <limits.h>
 
 GLOBALCONF *new_globalconf(config_t *cfg) {
 	config_setting_t *setting;
 	GLOBALCONF *global;
 
-	global = calloc(1, sizeof(*global));
+	global = malloc(sizeof(*global));
 
-	if(global == NULL)
+	if(global == NULL) {
+		perror("malloc");
 		return NULL;
-
-	
-	setting = config_lookup(cfg, "global");
-	if(setting != NULL) {
-		if(!(config_setting_lookup_string(setting, "serverroot", &(global->serverroot))
-		  && config_setting_lookup_string(setting, "logdir", &(global->logdir))
-		  && config_setting_lookup_string(setting, "loglocaltime", &(global->loglocaltime))
-		  && config_setting_lookup_string(setting, "logtimeformat", &(global->logtimeformat))
-		  && config_setting_lookup_int(setting, "port", &(global->port)))) {
-			fprintf(stderr, "Failed parsing global config\n");
-			return NULL;
-		}
 	}
+
+	*global = (GLOBALCONF){
+		.serverroot = "/srv/geminid",
+		.logdir = "/var/log/geminid",
+		.port = 1965,
+		.loglocaltime = true,
+		.logtimeformat = "[%d/%b/%Y:%H:%M:%S %z]",
+		.ipv6_enable = true,
+	};
+
+	setting = config_lookup(cfg, "global");
+	if (setting != NULL) {
+		int aux;
+
+		(void)config_setting_lookup_string(setting, "serverroot", &global->serverroot);
+		(void)config_setting_lookup_string(setting, "logdir", &global->logdir);
+
+		if (config_setting_lookup_int(setting, "port", &aux)) {
+			if (aux < 0 || aux > SHRT_MAX)
+				fprintf(stderr, "global.port: Invalid port number %d\n", aux);
+			else
+				global->port = aux;
+		}
+
+		if (config_setting_lookup_bool(setting, "loglocaltime", &aux))
+			global->loglocaltime = !!aux;
+
+		(void)config_setting_lookup_string(setting, "logtimeformat", &global->logtimeformat);
+
+		if (config_setting_lookup_bool(setting, "ipv6_enable", &aux))
+			global->ipv6_enable = !!aux;
+	}
+
 	return global;
 }
 
@@ -66,7 +89,7 @@ VHOSTLIST *new_vhostlist(config_t *cfg) {
 	VHOSTLIST *vhostlist;
 	VHOSTCONF *firstvhost;
 	ACCESSCONF *firstace;
-	char **firstfp;
+	const char **firstfp;
 	unsigned int count;
 	unsigned int i, j, k;
 	char configpath[MAX_CONFIG_PATH];
@@ -142,11 +165,13 @@ VHOSTLIST *new_vhostlist(config_t *cfg) {
 				}
 				vhostlist->vhost->accesslist->ace = firstace;
 			}
+			
 			vhostlist->vhost++;
 		}
 		vhostlist->vhost = firstvhost;
 	} else {
 		fprintf(stderr, "no vhost definitions found.\n");
+		free(vhostlist);
 		return NULL;
 	}
 
@@ -154,7 +179,7 @@ VHOSTLIST *new_vhostlist(config_t *cfg) {
 	return vhostlist;
 }
 
-int init_geminid_config(char *configpath, config_t *cfg, GLOBALCONF **global, VHOSTLIST **vhostlist) {
+int init_geminid_config(const char *configpath, config_t *cfg, GLOBALCONF **global, VHOSTLIST **vhostlist) {
 	config_init(cfg);
 	if(! config_read_file(cfg, configpath)) {
 		fprintf(stderr, "%s:%d - %s\n", config_error_file(cfg),
@@ -164,34 +189,53 @@ int init_geminid_config(char *configpath, config_t *cfg, GLOBALCONF **global, VH
 
 	*global = new_globalconf(cfg);
 	*vhostlist = new_vhostlist(cfg);
-	if(global == NULL)
-		return -1;
 
-	return 1;
+	if(*global != NULL && *vhostlist != NULL)
+		return 0;
+
+	free(*global);
+	free(*vhostlist);
+	return -1;
 }
 
 
-int testprintconfig(char *configpath) {
+int testprintconfig(const char *configpath) {
 	GLOBALCONF *global;
 	VHOSTLIST *vhostlist;
-	VHOSTCONF *firstvhost;
 	config_t cfg;
-	unsigned int i;
 
-	if(init_geminid_config(configpath, &cfg, &global, &vhostlist) < 1) {
+	if (init_geminid_config(configpath, &cfg, &global, &vhostlist) < 0) {
 		config_destroy(&cfg);
 		exit(EXIT_FAILURE);
 	}
 
-	firstvhost = vhostlist->vhost;	
-	fprintf(stderr, "Global config:\n-------------\nserverroot: %s\nlogdir: %s\nport: %d\n\n", global->serverroot, global->logdir, global->port);
-	for(i=0; i<vhostlist->count; i++) {
-		fprintf(stderr, "vHost %d:\n------\nname: %s\ndocroot: %s\naccesslog: %s\nerrorlog: %s\ncert: %s\nkey: %s\nindex: %s\n\n", i, vhostlist->vhost->name, vhostlist->vhost->docroot, vhostlist->vhost->accesslog, vhostlist->vhost->errorlog, vhostlist->vhost->cert, vhostlist->vhost->key, vhostlist->vhost->index);
-		vhostlist->vhost++;
+	fputs("Global config:\n-------------\n", stderr);
+	fprintf(stderr, "serverroot: %s\n", global->serverroot);
+	fprintf(stderr, "logdir: %s\n", global->logdir);
+	fprintf(stderr, "logtimeformat: %s\n", global->logtimeformat);
+	fprintf(stderr, "loglocaltime: %s\n", global->loglocaltime ? "true" : "false");
+	fprintf(stderr, "ipv6_enable: %s\n", global->ipv6_enable ? "true" : "false");
+	fprintf(stderr, "port: %hu\n",  global->port);
+	fputc('\n', stderr);
+
+	for(unsigned i = 0; i < vhostlist->count; i++) {
+		const VHOSTCONF *vhost;
+
+		vhost = &vhostlist->vhost[i];
+
+		fprintf(stderr, "vHost %u:\n------\n", i);
+		fprintf(stderr, "name: %s\n", vhost->name);
+		fprintf(stderr, "docroot: %s\n", vhost->docroot);
+		fprintf(stderr, "accesslog: %s\n", vhost->accesslog);
+		fprintf(stderr, "errorlog: %s\n", vhost->errorlog);
+		fprintf(stderr, "cert: %s\n", vhost->cert);
+		fprintf(stderr, "key: %s\n", vhost->key);
+		fprintf(stderr, "index: %s\n", vhost->index);
+		fputc('\n', stderr);
 	}
 
 	free(global);
-	free(firstvhost);
+	free(vhostlist->vhost);
 	free(vhostlist);
 	config_destroy(&cfg);
 	return(EXIT_SUCCESS);

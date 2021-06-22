@@ -59,7 +59,6 @@ int read_file_meta(char *path, char *buffer) {
 	if(strncmp(tmpbuf, ".gmi", 4) != 0) {
 		magic = magic_open(MAGIC_MIME_TYPE);
 		magic_load(magic, NULL);
-		magic_compile(magic, NULL);
 		magicstr = magic_file(magic, path);
 	
 		if(magicstr == NULL)

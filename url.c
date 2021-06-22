@@ -34,8 +34,6 @@
 #include "url.h"
 
 int build_request_string(char *buf, int bufsiz, URL *url) {
-	int i;
-	
 	if(url == NULL)
 		return -1;
 

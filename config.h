@@ -28,13 +28,16 @@
  */
 
 #define MAX_CONFIG_PATH 256
+#include <stdbool.h>
+#include <libconfig.h>
 
 typedef struct {
 	const char *serverroot;
 	const char *logdir;
-	int port;
-	const char *loglocaltime;
 	const char *logtimeformat;
+	bool loglocaltime;
+	bool ipv6_enable;
+	unsigned short port;
 } GLOBALCONF;
 
 typedef struct {
@@ -66,5 +69,5 @@ typedef struct {
 	VHOSTCONF *vhost;
 } VHOSTLIST;
 
-int init_geminid_config(char *configpath, config_t *cfg, GLOBALCONF **global, VHOSTLIST **vhostlist);
-int testprintconfig(char *configpath);
+int init_geminid_config(const char *configpath, config_t *cfg, GLOBALCONF **global, VHOSTLIST **vhostlist);
+int testprintconfig(const char *configpath);

@@ -30,51 +30,76 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-#include "gemini.h"
+#include <stdarg.h>
+
 #include "log.h"
 
-int log_access(FILE *lf, char *reqbuf, char *host, char *path, int status_major, int status_minor, long bytes, char *cc_issuer, char *cc_subject) {
+static struct {
+	const char *time_format;
+	struct tm * (*broken_down)(const time_t *, struct tm *);
+} g_logconfig = {
+	.time_format = "[%d/%b/%Y:%H:%M:%S %z]",
+	.broken_down = gmtime_r,
+};
+
+int log_setup(const LOGCONFIG *logconfig) {
+	g_logconfig.time_format = logconfig->time_format;
+	g_logconfig.broken_down = logconfig->use_local_time
+							? localtime_r
+							: gmtime_r
+							;
+	return 0;
+}
+
+static const char *current_time(char *buffer, size_t buflen) {
+	struct tm tm;
+	time_t t;
+
+	if (time(&t) == -1) {
+		perror("time");
+		return "???";
+	}
+
+	if (g_logconfig.broken_down(&t, &tm) == NULL) {
+		perror("gmtime_r / localtime_r");
+		return "???";
+	}
+
+	if (strftime(buffer, buflen, g_logconfig.time_format, &tm) == 0) {
+		fprintf(stderr, "stftime failed to format time");
+		return "???";
+	}
+
+	return buffer;
+}
+
+void log_access(FILE *lf, const LOG_ACCESS_ENTRY *entry) {
 	char timebuf[32];
-	struct tm *sTm;
-	time_t now;
 
-	now = time(0);
-	if(log_local_time < 1)
-		sTm = gmtime(&now);
-	else
-		sTm = localtime(&now);
-
-	strftime(timebuf, sizeof(timebuf), log_time_format, sTm);
-	return fprintf(lf, "%s %s %s %s %d%d %ld %s %s\n", timebuf, reqbuf, host, path, status_major, status_minor, bytes, cc_issuer, cc_subject);
+	// NOTE 2021-03-29 dacav@fastmail.com:
+	//  The last two fields are used to be the expansion of two
+	//  Ttring variables named `cc_issuer` and `cc_subject`.  All
+	//  invocations of `log_access` in the original code passed the "-"
+	//  string for both.
+	fprintf(lf, "%s %s %s %s %d%d %ld - -\n",
+		current_time(timebuf, sizeof(timebuf)),
+		entry->request ?: "-",
+		entry->host ?: "",
+		entry->path ?: "",
+		entry->status.major,
+		entry->status.minor,
+		entry->response_length
+	);
 }
 
-int log_error(FILE *lf, char *logbuf) {
+void log_error(FILE *lf, const char *format, ...) {
+	char logbuf[4096];
 	char timebuf[32];
-	struct tm *sTm;
-	time_t now;
+	va_list ap;
 
-	now = time(0);
-	if(log_local_time < 1)
-		sTm = gmtime(&now);
-	else
-		sTm = localtime(&now);
+	va_start(ap, format);
+	vsnprintf(logbuf, sizeof(logbuf), format, ap);
+	va_end(ap);
 
-	strftime(timebuf, sizeof(timebuf), log_time_format, sTm);
-	return fprintf(lf, "%s %s\n", timebuf, logbuf);
-}
-
-FILE *open_log(const char *path) {
-	FILE *lf;
-
-	if(strncmp(path, "-", 1) == 0) 
-		return stderr;
-
-	return fopen(path, "a");
-}
-
-int close_log(FILE *lf) {
-	if(lf == stderr)
-		return 0;
-
-	return fclose(lf);
+	fprintf(lf, "%s %s\n", current_time(timebuf, sizeof(timebuf)), logbuf);
 }
