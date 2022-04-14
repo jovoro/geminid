@@ -83,9 +83,9 @@ void log_access(FILE *lf, const LOG_ACCESS_ENTRY *entry) {
 	//  string for both.
 	fprintf(lf, "%s %s %s %s %d%d %ld - -\n",
 		current_time(timebuf, sizeof(timebuf)),
-		entry->request ?: "-",
-		entry->host ?: "",
-		entry->path ?: "",
+		entry->request ? entry->request : "-",
+		entry->host ? entry->host : "",
+		entry->path ? entry->path : "",
 		entry->status.major,
 		entry->status.minor,
 		entry->response_length

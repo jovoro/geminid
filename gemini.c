@@ -71,7 +71,7 @@ int write_gemini_response(SSL *ssl, int status_major, int status_minor, char *me
 
 int parse_request(char *buffer, int reqlen, URL *urlp) {
 	int i;
-	char tmpbuf[MAXBUF];
+	unsigned char tmpbuf[MAXBUF];
 	
 	*(buffer+reqlen) = '\0';
 	trim(buffer);
@@ -123,7 +123,7 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 
 	reqlen = read_request(ssl, reqbuf);
 	if(reqlen < 0) {
-		write_gemini_response(ssl, STATUS_PERMFAIL, 9, "Request too long", 11, "", 0);
+		write_gemini_response(ssl, STATUS_PERMFAIL, 9, "Request too long", 16, "", 0);
 		log_access(access_log, &(LOG_ACCESS_ENTRY){
 			.request = reqbuf,
 			.status.major = STATUS_PERMFAIL,
@@ -151,7 +151,7 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 
 	i = build_request_string(reqbuf, MAXBUF, &requrl);
 	if(i < 0) { 
-		write_gemini_response(ssl, STATUS_TEMPFAIL, 1, "Processing Error", 9, "", 0);
+		write_gemini_response(ssl, STATUS_TEMPFAIL, 1, "Processing Error", 16, "", 0);
 		log_access(access_log, &(LOG_ACCESS_ENTRY){
 			.request = reqbuf,
 			.status.major = STATUS_TEMPFAIL,
@@ -163,7 +163,19 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 	
 	strncpy(host, requrl.host, MAXBUF);
 	strncpy(path, requrl.path, MAXBUF);
-	snprintf(localpath, MAXBUF, "%s/%s", document_root, path);
+
+	i = snprintf(localpath, MAXBUF, "%s/%s", document_root, path);
+	if(i < 0) {
+		write_gemini_response(ssl, STATUS_TEMPFAIL, 1, "Processing Error", 16, "", 0);
+		log_access(access_log, &(LOG_ACCESS_ENTRY) {
+			.request = reqbuf,
+			.status.major = STATUS_TEMPFAIL,
+			.status.minor = 9
+			});
+		log_error(error_log, "Error: Could not handle request for %s\n", reqbuf);
+		return -1;
+	}
+
 	pathbuf = realpath(localpath, NULL);
 	
 	if(pathbuf == NULL) {
@@ -188,7 +200,7 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 		requrl.path[1] = path[1] = 0;
 		i = build_request_string(reqbuf, MAXBUF, &requrl);
 		if(i < 0) { 
-			write_gemini_response(ssl, STATUS_TEMPFAIL, 1, "Processing Error", 9, "", 0);
+			write_gemini_response(ssl, STATUS_TEMPFAIL, 1, "Processing Error", 16, "", 0);
 			log_access(access_log, &(LOG_ACCESS_ENTRY){
 				.request = reqbuf,
 				.status.major = STATUS_TEMPFAIL,
@@ -220,7 +232,18 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 
 			if(path[strlen(path)-1] != '/') {
 				/* redirect to correct location with trailing slash (status 31) */
-				snprintf(mime, MAXBUF, "%s/", reqbuf);
+				i = snprintf(mime, MAXBUF, "%s/", reqbuf);
+				if(i < 0) {
+					write_gemini_response(ssl, STATUS_TEMPFAIL, 1, "Processing Error", 16, "", 0);
+					log_access(access_log, &(LOG_ACCESS_ENTRY) {
+						.request = reqbuf,
+						.status.major = STATUS_TEMPFAIL,
+						.status.minor = 9
+						});
+					log_error(error_log, "Error: Could not handle request for %s\n", reqbuf);
+					return -1;
+				}
+
 				write_gemini_response(ssl, STATUS_REDIRECT, 1, mime, strlen(mime), "", 0);
 				log_access(access_log, &(LOG_ACCESS_ENTRY){
 					.request = reqbuf,
@@ -232,7 +255,18 @@ int handle_request(SSL *ssl, char *document_root, char *default_document, FILE *
 				return 0;
 			}
 
-			snprintf(defdocpath, MAXBUF, "%s/%s", localpath, default_document);
+			i = snprintf(defdocpath, MAXBUF, "%s/%s", localpath, default_document);
+			if(i < 0) {
+				write_gemini_response(ssl, STATUS_TEMPFAIL, 1, "Processing Error", 16, "", 0);
+				log_access(access_log, &(LOG_ACCESS_ENTRY) {
+					.request = reqbuf,
+					.status.major = STATUS_TEMPFAIL,
+					.status.minor = 9
+					});
+				log_error(error_log, "Error: Could not handle request for %s\n", reqbuf);
+				return -1;
+			}
+
 			if(access(defdocpath, R_OK) != -1) {
 				if((i = stat(defdocpath, &defdocstatbuf)) == 0) {
 					/* We have a default document, read it */

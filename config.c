@@ -86,7 +86,6 @@ VHOSTLIST *new_vhostlist(config_t *cfg) {
 	config_setting_t *setting;
 	VHOSTLIST *vhostlist;
 	VHOSTCONF *firstvhost;
-	unsigned int count;
 	unsigned int i;
 
 	vhostlist = calloc(1, sizeof(*vhostlist));

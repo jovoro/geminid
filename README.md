@@ -4,7 +4,7 @@ The current state is a result of a few hours of hacking, barely able to even
 serve content. But the goal is to have a compliant gemini server written in C.
 
 ## Prerequisites
-A Unix-like or POSIX-compliant OS is required. OpenSSL 1.1.1 is recommended. If you build with an earlier version, I assume it is one which at least supports TLS 1.2. You need to define `TLS_USE_V1_2_METHOD` if you want to use TLS 1.2. If you want to use even older versions, you need to modify the source code in tls.c to use the appropriate version-specific method.
+A Unix-like or POSIX-compliant OS is required. OpenSSL 1.1.1 is recommended. If you build with an earlier version, I assume it is one which at least supports TLS 1.2. You need to define `TLS_USE_V1_2_METHOD` if you want to use TLS 1.2. If you want to use even older versions, you need to modify the source code in tls.c to use the appropriate version-specific method. OpenSSL 3.0 has been tested successfully.
 
 I've added a more sophisticated URL parser which is based on lex/flex, so you need that, too. As of 2020-05-20 there is a new configuration file introduced which requires libconfig as a dependency.
 
@@ -29,6 +29,8 @@ INCDIRS=-I/usr/include/openssl11
 LIBDIRS=-L/usr/lib64/openssl11
 EOF
 ```
+
+Depending on your compiler you might want to edit the CFLAGS, I've recently changed them to include all warnings, so if -Wall, -Wextra or -pedantic is not supported by your compiler, just remove those flags.
 
 ## Configuring
 There's an example configuration file named `example.conf` in this repo. You can define multiple virtual hosts, of which the first definition is the default vhost. The default vhost is used if no servername is defined during the TLS handshake or if no vhost definition matches the provided hostname. Each vhost needs a separate TLS certificate.
