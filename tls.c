@@ -129,6 +129,10 @@ int sni_cb(SSL *ssl, int *ad, void *arg) {
 	int vr;
 	SSL_CTX *r;
 
+	/* Fix complaints about unused parameters */
+	(void)(ad);
+	(void)(arg);
+
 	if(ssl == NULL)
 		return SSL_TLSEXT_ERR_NOACK;
 
