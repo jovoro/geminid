@@ -47,4 +47,4 @@ Just run the produced executable geminid. Some options are now configurable via 
 ## Complaining
 To vent your anger, you may reach me at jr at vrtz dot ch.
 
-You can find a demonstration of it running at gemini://gemini.uxq.ch/ and some more information on how I run it at gemini://gemini.uxq.ch/running.gmi
+You can find a demonstration of it running at gemini://gemini.uxq.ch/ and some more information on how I run it at gemini://gemini.uxq.ch/running.gmi; However, please be aware that this machine will go offline on 2022-05-30, since I'm switching jobs and therefore will not have access to a machine with gratis internet feed.
