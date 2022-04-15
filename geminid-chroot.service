@@ -1,0 +1,29 @@
+# Copyright (c) 2020, 2021, 2022 J. von Rotz <jr@vrtz.ch>
+# 
+# This is a sample service description for geminid when run in a chroot.
+# Just create the necessary directories and copy the geminid binary and
+# the required libraries there, for example:
+# 
+# mkdir -p /users/gemini/{bin,lib64,etc/geminid/{keys,certs},var/log/geminid}
+# cp /usr/local/bin/geminid /users/gemini/bin
+# cp /etc/geminid/geminid.conf /users/gemini/etc/geminid
+# cp /etc/geminid/keys/* /users/gemini/etc/geminid/keys
+# cp /etc/geminid/certs/* /users/gemini/etc/geminid/certs
+# cp /lib64/ld-linux-x86-64.so.2 /users/gemini/lib64
+# cp /lib64/ld-2.31.so /users/gemini/lib64
+# ...etc., repeat for all required libraries. Use the ldd command on the geminid binary to find out which libraries to copy.
+
+[Unit]
+Description=Geminid, a gemini server written in C
+After=network.target
+Before=
+
+[Service]
+Type=simple
+User=gemini
+Group=gemini
+RootDirectory=/users/gemini
+ExecStart=/bin/geminid -c /etc/geminid/geminid.conf
+
+[Install]
+WantedBy=multi-user.target
