@@ -34,6 +34,12 @@ CFLAGS=-Wall -Wextra -pedantic
 DEBUGFLAGS=-g -DGEMINID_DEBUG
 TLSFLAGS= # Use -DTLS_USE_V1_2_METHOD for older versions of OpenSSL, you can use Makefile.local for that
 OBJ=main.o tls.o gemini.o util.o mime.o file.o log.o url.o lexurl.o config.o vhost.o
+PREFIX=/usr/local
+CONFDIR=/etc/geminid
+DATADIR=/srv/geminid
+LOGDIR=/var/log/geminid
+RUNUSER=gemini
+RUNGROUP=gemini
 INCDIRS=
 LIBDIRS=
 
@@ -64,3 +70,9 @@ clean:
 
 veryclean: clean
 	rm -f *.pem *.key *.mgc
+
+install:
+	install -d -g $(RUNGROUP) -o $(RUNUSER) -m 0755 $(DATADIR) $(LOGDIR) $(CONFDIR)
+	install -d -g $(RUNGROUP) -o $(RUNUSER) -m 0755 $(CONFDIR)/certs $(CONFDIR)/keys
+	install -g $(RUNGROUP) -o $(RUNUSER) -m 0744 geminid $(PREFIX)/bin
+	install -g $(RUNGROUP) -o $(RUNUSER) -m 0644 example.conf $(CONFDIR)
