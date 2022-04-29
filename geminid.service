@@ -1,0 +1,18 @@
+# Copyright (c) 2020, 2021, 2022 J. von Rotz <jr@vrtz.ch>
+# 
+# This is a sample service description for geminid.
+# It is assumed that the default install targets from the Makefile are used.
+
+[Unit]
+Description=Geminid, a gemini server written in C
+After=network.target
+Before=
+
+[Service]
+Type=simple
+User=gemini
+Group=gemini
+ExecStart=/usr/local/bin/geminid -c /etc/geminid/geminid.conf
+
+[Install]
+WantedBy=multi-user.target

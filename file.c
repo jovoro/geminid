@@ -104,7 +104,7 @@ int read_directory(char *path, char *document_root, char *requesturl, char **buf
 	char localpath[MAXBUF];
 	char tmpbuf[MAXBUF];
 	char urlbuf[MAXBUF];
-	char *table;
+	unsigned char *table;
 	void *np;
 	char *bufloc;
 
@@ -133,7 +133,11 @@ int read_directory(char *path, char *document_root, char *requesturl, char **buf
 		if(strncmp(ep->d_name, ".", 1) == 0 || strncmp(ep->d_name, "..", 2) == 0)
 			continue;
 
-		snprintf(tmpbuf, MAXBUF, "%s/%s", localpath, ep->d_name);
+		i = snprintf(tmpbuf, MAXBUF, "%s/%s", localpath, ep->d_name);
+		if(i < 0) {
+			return -1;
+		}
+
 		if((i = stat(tmpbuf, &statbuf)) == 0) {
 			tmpbuf[0] = 0;
 			linelen = 0;	
@@ -144,7 +148,7 @@ int read_directory(char *path, char *document_root, char *requesturl, char **buf
 				linelen += 1; /* For adding slash at the end of d_name to indicate directory */
 			}
 	
-			i = url_encode(table, tmpbuf, urlbuf, 4096);
+			i = url_encode(table, (unsigned char *) tmpbuf, urlbuf, 4096);
 			linelen += 3 + i + 1 + strlen(ep->d_name) + 2;
 			outsiz += linelen;
 			if((np = realloc(bufloc, outsiz))) {

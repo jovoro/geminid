@@ -28,6 +28,8 @@
  */
 
 %option noyywrap
+%option noinput
+%option nounput
 
 %{
 #ifdef __linux__

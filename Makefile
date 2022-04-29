@@ -1,4 +1,4 @@
-# Copyright (c) 2020 J. von Rotz <jr@vrtz.ch>
+# Copyright (c) 2020, 2021, 2022 J. von Rotz <jr@vrtz.ch>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -29,56 +29,38 @@
 
 CC=/usr/bin/cc
 LEX=/usr/bin/lex
-CFLAGS=-lconfig -lmagic -lssl -lcrypto 
+LDFLAGS=-lconfig -lmagic -lssl -lcrypto 
+CFLAGS=-Wall -Wextra -pedantic
 DEBUGFLAGS=-g -DGEMINID_DEBUG
 TLSFLAGS= # Use -DTLS_USE_V1_2_METHOD for older versions of OpenSSL, you can use Makefile.local for that
 OBJ=main.o tls.o gemini.o util.o mime.o file.o log.o url.o lexurl.o config.o vhost.o
+PREFIX=/usr/local
+CONFDIR=/etc/geminid
+DATADIR=/srv/geminid
+LOGDIR=/var/log/geminid
+RUNUSER=gemini
+RUNGROUP=gemini
 INCDIRS=
 LIBDIRS=
 
 -include Makefile.local
 
+all: geminid
+
 geminid: $(OBJ)
-	$(CC) $(LIBDIRS) $(DEBUGFLAGS) -o geminid $(CFLAGS) $(OBJ)
+	$(CC) $(CFLAGS) $(LIBDIRS) $(DEBUGFLAGS) -o geminid $(LDFLAGS) $(OBJ)
 
 parseurl: parseurl.c url.o lexurl.o
-	$(CC) $(LIBDIRS) $(DEBUGFLAGS) -o parseurl url.o lexurl.o parseurl.c
-
-main.o: main.c
-	$(CC) $(INCDIRS) $(DEBUGFLAGS) -c main.c
+	$(CC) $(CFLAGS) $(LIBDIRS) $(DEBUGFLAGS) -o parseurl url.o lexurl.o parseurl.c
 
 tls.o: tls.c
-	$(CC) $(INCDIRS) $(DEBUGFLAGS) $(TLSFLAGS) -c tls.c
+	$(CC) $(CFLAGS) $(INCDIRS) $(DEBUGFLAGS) $(TLSFLAGS) -c tls.c
 
-gemini.o: gemini.c
-	$(CC) $(INCDIRS) $(DEBUGFLAGS) -c gemini.c
-
-util.o: util.c
-	$(CC) $(INCDIRS) $(DEBUGFLAGS) -c util.c
-
-mime.o: mime.c
-	$(CC) $(INCDIRS) $(DEBUGFLAGS) -c mime.c
-
-file.o: file.c
-	$(CC) $(INCDIRS) $(DEBUGFLAGS) -c file.c
-
-log.o: log.c
-	$(CC) $(INCDIRS) $(DEBUGFLAGS) -c log.c
-
-url.o: url.c
-	$(CC) $(INCDIRS) $(DEBUGFLAGS) -c url.c
-
-lexurl.o: lexurl.c
-	$(CC) $(INCDIRS) $(DEBUGFLAGS) -c lexurl.c
+%.o: %.c 
+	$(CC) $(CFLAGS) $(INCDIRS) $(DEBUGFLAGS) -o $@ -c $<
 
 lexurl.c: lexurl.l
 	$(LEX) -o lexurl.c lexurl.l
-
-config.o: config.c
-	$(CC) $(INCDIRS) $(DEBUGFLAGS) -c config.c
-
-vhost.o: vhost.c
-	$(CC) $(INCDIRS) $(DEBUGFLAGS) -c vhost.c
 
 cert:
 	openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes # nodes: No DES, do not prompt for pass
@@ -88,3 +70,9 @@ clean:
 
 veryclean: clean
 	rm -f *.pem *.key *.mgc
+
+install:
+	install -d -g $(RUNGROUP) -o $(RUNUSER) -m 0755 $(DATADIR) $(LOGDIR) $(CONFDIR)
+	install -d -g $(RUNGROUP) -o $(RUNUSER) -m 0755 $(CONFDIR)/certs $(CONFDIR)/keys
+	install -g $(RUNGROUP) -o $(RUNUSER) -m 0744 geminid $(PREFIX)/bin
+	install -g $(RUNGROUP) -o $(RUNUSER) -m 0644 example.conf $(CONFDIR)

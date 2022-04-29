@@ -84,9 +84,12 @@ void usage(char *progname) {
 	exit(EXIT_FAILURE);
 }
 
+/* Currently not needed */
+/*
 void intHandler(int signal) {
 	keepRunning = 0;
 }
+*/
 
 int main(int argc, char **argv) {
 	int sock;
@@ -107,6 +110,7 @@ int main(int argc, char **argv) {
 	VHOST *tempvhp;
 	config_t cfg;
 	unsigned int i;
+	int j;
 
 	while((opt = getopt(argc, argv, "c:t")) != -1) {
 		switch(opt) {
@@ -186,8 +190,8 @@ int main(int argc, char **argv) {
 		vhcp++;
 		vhp++;
 	}
-	i = set_current_vhost(vhost);
-	if(i < 0) {
+	j = set_current_vhost(vhost);
+	if(j < 0) {
 		fprintf(stderr, "Cannot set current (default) vhost\n");
 		exit(EXIT_FAILURE);
 	}

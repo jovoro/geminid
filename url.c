@@ -48,9 +48,9 @@ int build_request_string(char *buf, int bufsiz, URL *url) {
  * https://stackoverflow.com/questions/5842471/c-url-encoding
  */
 
-char *new_url_encoder_table() {
+unsigned char *new_url_encoder_table() {
 	int i;
-	char *table;
+	unsigned char *table;
 
 	table = malloc(256);
 	if(!table)
@@ -63,7 +63,7 @@ char *new_url_encoder_table() {
 	return table;
 }
 
-int url_encode(char *table, char *inbuf, char *outbuf, int outbufsiz) {
+int url_encode(unsigned char *table, unsigned char *inbuf, char *outbuf, int outbufsiz) {
 	int outlen = 0;
 
 	for (; *inbuf; inbuf++) {
@@ -84,7 +84,7 @@ int url_encode(char *table, char *inbuf, char *outbuf, int outbufsiz) {
 /* URL decoding function, stolen from
  * https://stackoverflow.com/questions/2673207/c-c-url-decode-library
  */
-int url_decode(char *dst, const char *src, int bufsiz) {
+int url_decode(unsigned char *dst, const char *src, int bufsiz) {
         char a, b;
 	int outlen = 0;
         while (*src) {
